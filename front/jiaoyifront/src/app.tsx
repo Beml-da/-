@@ -72,7 +72,7 @@ export async function getInitialState(): Promise<{
   const currentUser = userStr ? JSON.parse(userStr) : null;
 
   return {
-    name: currentUser?.nickname ?? '未登录',
+    name: currentUser?.nickname ?? '的基地啊家的我',
     currentUser: currentUser,
   };
 }
