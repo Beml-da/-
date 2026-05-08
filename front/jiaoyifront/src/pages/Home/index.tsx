@@ -90,7 +90,7 @@ const HomePage: React.FC = () => {
         const [hotRes, newestRes, serviceRes] = await Promise.all([
           getHotProducts(6),
           getNewestProducts(6),
-          getServices({ pageSize: 6 }),
+          getServices({ pageSize: 8 }),
         ]);
 
         if (hotRes.code === 200 && hotRes.data) {
@@ -278,62 +278,6 @@ const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 校园服务 */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>
-            <TeamOutlined /> 校园服务
-          </h2>
-          <Link to="/categories?category=校园服务" className={styles.moreLink}>
-            查看更多 <RightOutlined />
-          </Link>
-        </div>
-        <div className={styles.serviceGrid}>
-          {services.map((service: any) => {
-            const config = getServiceConfig(service.serviceType);
-            return (
-              <Link
-                key={service.id}
-                to={`/service/${service.id}`}
-                className={styles.serviceCard}
-              >
-                <div
-                  className={styles.serviceImage}
-                  style={{ background: config.bg }}
-                >
-                  <div
-                    className={styles.serviceIconWrap}
-                    style={{ color: config.textColor }}
-                  >
-                    {config.icon}
-                  </div>
-                  <span className={styles.serviceTypeTag}>
-                    {service.serviceType || '服务'}
-                  </span>
-                </div>
-                <div className={styles.serviceContent}>
-                  <p className={styles.serviceTitle}>{service.title}</p>
-                  <p className={styles.serviceDesc}>{service.description}</p>
-                  <div className={styles.serviceFooter}>
-                    <span className={styles.servicePrice}>
-                      ¥{service.price}
-                      {service.priceUnit || '/次'}
-                    </span>
-                    <span className={styles.serviceOrders}>
-                      ★ {(service.rating || 5).toFixed(1)} ·{' '}
-                      {service.orderCount || 0}单
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-          {services.length === 0 && !loading && (
-            <div className={styles.empty}>暂无服务</div>
-          )}
-        </div>
-      </div>
-
       {/* 热门商品 */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -458,6 +402,62 @@ const HomePage: React.FC = () => {
           })}
           {latestProducts.length === 0 && !loading && (
             <div className={styles.empty}>暂无商品</div>
+          )}
+        </div>
+      </div>
+
+      {/* 校园服务 */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>
+            <TeamOutlined /> 校园服务
+          </h2>
+          <Link to="/categories?category=校园服务" className={styles.moreLink}>
+            查看更多 <RightOutlined />
+          </Link>
+        </div>
+        <div className={styles.serviceGrid}>
+          {services.map((service: any) => {
+            const config = getServiceConfig(service.serviceType);
+            return (
+              <Link
+                key={service.id}
+                to={`/service/${service.id}`}
+                className={styles.serviceCard}
+              >
+                <div
+                  className={styles.serviceImage}
+                  style={{ background: config.bg }}
+                >
+                  <div
+                    className={styles.serviceIconWrap}
+                    style={{ color: config.textColor }}
+                  >
+                    {config.icon}
+                  </div>
+                  <span className={styles.serviceTypeTag}>
+                    {service.serviceType || '服务'}
+                  </span>
+                </div>
+                <div className={styles.serviceContent}>
+                  <p className={styles.serviceTitle}>{service.title}</p>
+                  <p className={styles.serviceDesc}>{service.description}</p>
+                  <div className={styles.serviceFooter}>
+                    <span className={styles.servicePrice}>
+                      ¥{service.price}
+                      {service.priceUnit || '/次'}
+                    </span>
+                    <span className={styles.serviceOrders}>
+                      ★ {(service.rating || 5).toFixed(1)} ·{' '}
+                      {service.orderCount || 0}单
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+          {services.length === 0 && !loading && (
+            <div className={styles.empty}>暂无服务</div>
           )}
         </div>
       </div>

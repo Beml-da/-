@@ -11,12 +11,15 @@ import {
   updateServiceStatus,
 } from '@/utils/api';
 import {
+  AppstoreOutlined,
   DeleteOutlined,
   DownCircleOutlined,
   EditOutlined,
   EyeOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  ShopOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from '@umijs/max';
 import {
@@ -25,6 +28,7 @@ import {
   Empty,
   Modal,
   Space,
+  Statistic,
   Table,
   Tabs,
   Tag,
@@ -33,7 +37,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './index.less';
 
-// 解析后端返回的 images/tags 字段（后端存的是 JSON 字符串）
 function parseJsonArray(val: any): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -123,107 +126,115 @@ const MyPublishPage: React.FC = () => {
     });
   };
 
-  const handleEdit = () => {
-    message.info('编辑功能开发中...');
-  };
+  const handleToggleStatus = useCallback(
+    async (record: Product | Service) => {
+      const isProduct = (record as any).type !== 'service';
 
-  const handleToggleStatus = useCallback(async (record: Product | Service) => {
-    const isProduct = (record as any).type !== 'service';
-
-    if (isProduct) {
-      const newStatus = record.status === '在售' ? '已下架' : '在售';
-      try {
-        await updateProductStatus(record.id, newStatus);
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === record.id ? { ...p, status: newStatus as any } : p,
-          ),
-        );
-        message.success('状态更新成功');
-      } catch {
-        message.error('状态更新失败');
-      }
-    } else {
-      // 兼容：后端可能存商品状态值('在售'/'已下架')也可能存服务状态值('可用'/'暂停')
-      const currentStatus = record.status;
-      let newStatus: string;
-      if (currentStatus === '可用') {
-        newStatus = '暂停';
-      } else if (currentStatus === '暂停') {
-        newStatus = '可用';
-      } else if (currentStatus === '已下架') {
-        newStatus = '在售';
+      if (isProduct) {
+        const newStatus = record.status === '在售' ? '已下架' : '在售';
+        try {
+          await updateProductStatus(record.id, newStatus);
+          setProducts((prev) =>
+            prev.map((p) =>
+              p.id === record.id ? { ...p, status: newStatus as any } : p,
+            ),
+          );
+          message.success('状态更新成功');
+        } catch {
+          message.error('状态更新失败');
+        }
       } else {
-        newStatus = '已下架'; // 默认下架（'在售' -> '已下架'）
-      }
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === record.id
-            ? { ...s, status: newStatus as Service['status'] }
-            : s,
-        ),
-      );
-      try {
-        await updateServiceStatus(record.id, newStatus);
-        message.success('状态更新成功');
-      } catch {
+        const currentStatus = record.status;
+        let newStatus: string;
+        if (currentStatus === '可用') {
+          newStatus = '暂停';
+        } else if (currentStatus === '暂停') {
+          newStatus = '可用';
+        } else if (currentStatus === '已下架') {
+          newStatus = '在售';
+        } else {
+          newStatus = '已下架';
+        }
         setServices((prev) =>
           prev.map((s) =>
             s.id === record.id
-              ? { ...s, status: currentStatus as Service['status'] }
+              ? { ...s, status: newStatus as Service['status'] }
               : s,
           ),
         );
-        message.error('状态更新失败');
+        try {
+          await updateServiceStatus(record.id, newStatus);
+          message.success('状态更新成功');
+        } catch {
+          setServices((prev) =>
+            prev.map((s) =>
+              s.id === record.id
+                ? { ...s, status: currentStatus as Service['status'] }
+                : s,
+            ),
+          );
+          message.error('状态更新失败');
+        }
       }
-    }
-  }, []);
+    },
+    [],
+  );
 
-  // 商品列配置
+  const statsData = useMemo(() => {
+    const onSale =
+      products.filter((p) => p.status === '在售').length +
+      services.filter((s) => s.status === '可用' || s.status === '在售').length;
+    const totalViews =
+      products.reduce((sum, p) => sum + (p.viewCount || 0), 0) +
+      services.reduce((sum, s) => sum + (s.viewCount || 0), 0);
+    const totalFavorites =
+      products.reduce((sum, p) => sum + (p.favoriteCount || 0), 0) +
+      services.reduce((sum, s) => sum + (s.favoriteCount || 0), 0);
+    return {
+      total: products.length + services.length,
+      onSale,
+      totalViews,
+      totalFavorites,
+    };
+  }, [products, services]);
+
   const productColumns = useMemo(
     () => [
       {
         title: '商品',
         key: 'product',
-        render: (_: any, record: Product) => {
-          return (
-            <div className={styles.productCell}>
-              <ProductImage
-                src={record.images}
-                alt={record.title}
-                width={60}
-                height={60}
-              />
-              <div className={styles.productInfo}>
-                <Link
-                  to={`/product/${record.id}`}
-                  className={styles.productTitle}
+        render: (_: any, record: Product) => (
+          <div className={styles.productCell}>
+            <ProductImage
+              src={record.images}
+              alt={record.title}
+              width={60}
+              height={60}
+            />
+            <div className={styles.productInfo}>
+              <Link
+                to={`/product/${record.id}`}
+                className={styles.productTitle}
+              >
+                {record.title}
+              </Link>
+              <div className={styles.productMeta}>
+                <Tag
+                  color={
+                    CONDITION_OPTIONS.find(
+                      (c) => c.value === record.condition,
+                    )?.color
+                  }
                 >
-                  {record.title}
-                </Link>
-                <div className={styles.productMeta}>
-                  <Tag
-                    color={
-                      CONDITION_OPTIONS.find(
-                        (c) => c.value === record.condition,
-                      )?.color
-                    }
-                  >
-                    {record.condition}
-                  </Tag>
-                  <span className={styles.productPrice}>¥{record.price}</span>
-                </div>
+                  {record.condition}
+                </Tag>
+                <span className={styles.productPrice}>¥{record.price}</span>
               </div>
             </div>
-          );
-        },
+          </div>
+        ),
       },
-      {
-        title: '浏览',
-        dataIndex: 'viewCount',
-        key: 'viewCount',
-        width: 80,
-      },
+      { title: '浏览', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
       {
         title: '收藏',
         dataIndex: 'favoriteCount',
@@ -287,7 +298,7 @@ const MyPublishPage: React.FC = () => {
               type="text"
               size="small"
               icon={<EditOutlined />}
-              onClick={() => handleEdit()}
+              onClick={() => message.info('编辑功能开发中...')}
             >
               编辑
             </Button>
@@ -305,7 +316,6 @@ const MyPublishPage: React.FC = () => {
     [navigate],
   );
 
-  // 服务列配置
   const serviceColumns = useMemo(
     () => [
       {
@@ -332,12 +342,7 @@ const MyPublishPage: React.FC = () => {
           );
         },
       },
-      {
-        title: '浏览',
-        dataIndex: 'viewCount',
-        key: 'viewCount',
-        width: 80,
-      },
+      { title: '浏览', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
       {
         title: '收藏',
         dataIndex: 'favoriteCount',
@@ -359,7 +364,9 @@ const MyPublishPage: React.FC = () => {
         key: 'status',
         width: 100,
         render: (status: string) => (
-          <Tag color={status === '可用' ? 'success' : 'warning'}>{status}</Tag>
+          <Tag color={status === '可用' ? 'success' : 'warning'}>
+            {status}
+          </Tag>
         ),
       },
       {
@@ -433,6 +440,39 @@ const MyPublishPage: React.FC = () => {
         </Link>
       </div>
 
+      <div className={styles.statsBar}>
+        <Card className={styles.statCard}>
+          <Statistic
+            title="全部发布"
+            value={statsData.total}
+            prefix={<AppstoreOutlined />}
+          />
+        </Card>
+        <Card className={styles.statCard}>
+          <Statistic
+            title="在售中"
+            value={statsData.onSale}
+            prefix={<ShopOutlined />}
+            valueStyle={{ color: '#52c41a' }}
+          />
+        </Card>
+        <Card className={styles.statCard}>
+          <Statistic
+            title="总浏览"
+            value={statsData.totalViews}
+            prefix={<EyeOutlined />}
+          />
+        </Card>
+        <Card className={styles.statCard}>
+          <Statistic
+            title="总收藏"
+            value={statsData.totalFavorites}
+            prefix={<ToolOutlined />}
+            valueStyle={{ color: '#faad14' }}
+          />
+        </Card>
+      </div>
+
       <Card className={styles.mainCard}>
         <Tabs
           activeKey={activeTab}
@@ -443,14 +483,23 @@ const MyPublishPage: React.FC = () => {
               label: `商品 (${products.length})`,
               children:
                 products.length === 0 ? (
-                  <Empty
-                    description="还没有发布商品"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  >
-                    <Link to="/publish">
-                      <Button type="primary">发布商品</Button>
-                    </Link>
-                  </Empty>
+                  <div className={styles.emptyWrapper}>
+                    <Empty
+                      description={
+                        <span className={styles.emptyText}>
+                          还没有发布商品，快去发布你的宝贝吧
+                        </span>
+                      }
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      className={styles.empty}
+                    >
+                      <Link to="/publish">
+                        <Button type="primary" icon={<PlusOutlined />}>
+                          发布商品
+                        </Button>
+                      </Link>
+                    </Empty>
+                  </div>
                 ) : (
                   <Table
                     key={products.length}
@@ -468,14 +517,23 @@ const MyPublishPage: React.FC = () => {
               label: `服务 (${services.length})`,
               children:
                 services.length === 0 ? (
-                  <Empty
-                    description="还没有发布服务"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  >
-                    <Link to="/publish?type=service">
-                      <Button type="primary">发布服务</Button>
-                    </Link>
-                  </Empty>
+                  <div className={styles.emptyWrapper}>
+                    <Empty
+                      description={
+                        <span className={styles.emptyText}>
+                          还没有发布服务，快去发布你的服务吧
+                        </span>
+                      }
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      className={styles.empty}
+                    >
+                      <Link to="/publish?type=service">
+                        <Button type="primary" icon={<PlusOutlined />}>
+                          发布服务
+                        </Button>
+                      </Link>
+                    </Empty>
+                  </div>
                 ) : (
                   <Table
                     key={services.length}

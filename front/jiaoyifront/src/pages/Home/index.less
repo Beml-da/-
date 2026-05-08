@@ -1,5 +1,5 @@
 .container {
-  padding: 20px;
+  padding: 16px;
   max-width: 1400px;
   margin: 0 auto;
   background: #f5f7fa;
@@ -8,8 +8,8 @@
 
 /* 搜索区域 */
 .searchSection {
-  margin: -20px -20px 24px -20px;
-  padding: 48px 20px 40px;
+  margin: -16px -16px 24px -16px;
+  padding: 40px 16px 32px;
   text-align: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 24px;
@@ -245,105 +245,107 @@
 /* 服务卡片 */
 .serviceGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 
 .serviceCard {
   background: #fff;
-  border-radius: 12px;
-  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
   text-decoration: none;
   transition: all 0.3s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .serviceCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .serviceImage {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .serviceIconWrap {
-  font-size: 56px;
-  opacity: 0.8;
+  font-size: 28px;
+  opacity: 0.9;
   transition: transform 0.3s;
 }
 
 .serviceCard:hover .serviceIconWrap {
-  transform: scale(1.2);
-  opacity: 1;
+  transform: scale(1.1);
 }
 
 .serviceTypeTag {
   position: absolute;
-  bottom: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.4);
-  color: #fff;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
+  top: 6px;
+  right: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .serviceContent {
-  padding: 16px;
+  padding: 10px;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .serviceTitle {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: #333;
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .serviceDesc {
-  font-size: 13px;
+  font-size: 11px;
   color: #999;
-  margin: 0 0 12px;
-  line-height: 1.5;
+  margin: 0;
+  line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  flex: 1;
 }
 
 .serviceFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: auto;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f5f5f5;
 }
 
 .servicePrice {
   color: #ff4d4f;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .serviceOrders {
   color: #999;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* 空状态 */
@@ -543,7 +545,15 @@
   }
 
   .serviceGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .serviceImage {
+    height: 80px;
+  }
+
+  .serviceIconWrap {
+    font-size: 28px;
   }
 
   .productGrid {

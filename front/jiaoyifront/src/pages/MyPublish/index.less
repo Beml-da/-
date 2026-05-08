@@ -27,6 +27,42 @@
   font-weight: 500;
 }
 
+/* 统计栏 */
+.statsBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  text-align: center;
+
+  :global(.ant-statistic-title) {
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  :global(.ant-statistic-content) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  :global(.ant-statistic-content-prefix) {
+    color: #667eea;
+    font-size: 18px;
+  }
+}
+
 /* 主卡片 */
 .mainCard {
   border-radius: 16px;
@@ -41,6 +77,23 @@
 
 .table :global(.ant-table-tbody > tr:hover > td) {
   background: #f9f9ff;
+}
+
+/* 空状态包装 */
+.emptyWrapper {
+  padding: 40px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty {
+  padding: 20px;
+}
+
+.emptyText {
+  color: #999;
+  font-size: 14px;
 }
 
 /* 商品单元格 */
@@ -101,6 +154,7 @@
   justify-content: center;
   font-size: 12px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* 响应式 */
@@ -117,5 +171,10 @@
 
   .header :global(.ant-btn) {
     width: 100%;
+  }
+
+  .statsBar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 }
