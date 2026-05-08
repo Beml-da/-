@@ -1,0 +1,121 @@
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.header :global(.ant-btn-primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  height: 40px;
+  padding: 0 24px;
+  font-weight: 500;
+}
+
+/* 主卡片 */
+.mainCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* 表格 */
+.table :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.table :global(.ant-table-tbody > tr:hover > td) {
+  background: #f9f9ff;
+}
+
+/* 商品单元格 */
+.productCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.productInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.productTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.productTitle:hover {
+  color: #667eea;
+}
+
+.productMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.productPrice {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff4d4f;
+}
+
+.rating {
+  color: #faad14;
+  font-weight: 600;
+}
+
+/* 服务图标 */
+.serviceIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .header :global(.ant-btn) {
+    width: 100%;
+  }
+}

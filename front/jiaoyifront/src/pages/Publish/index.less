@@ -1,0 +1,216 @@
+.container {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px;
+}
+
+.subtitle {
+  color: #999;
+  font-size: 14px;
+  margin: 0;
+}
+
+.publishTypeGroup {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.publishTypeGroup :global(.ant-radio-button-wrapper) {
+  height: auto;
+  padding: 12px 40px;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+.publishTypeGroup :global(.ant-radio-button-wrapper::before) {
+  display: none;
+}
+
+.tabs {
+  margin-bottom: 20px;
+}
+
+.tabs :global(.ant-tabs-nav) {
+  margin-bottom: 24px;
+}
+
+.tabs :global(.ant-tabs-tab) {
+  font-size: 15px;
+  padding: 12px 0;
+}
+
+/* 表单卡片 */
+.formCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.form :global(.ant-form-item-label > label) {
+  font-weight: 500;
+  color: #333;
+}
+
+.form :global(.ant-input-textarea textarea) {
+  resize: none;
+}
+
+.formRow {
+  display: flex;
+  gap: 16px;
+}
+
+.priceInput {
+  flex: 1;
+}
+
+.categorySelect {
+  flex: 1;
+}
+
+.conditionSelect {
+  width: 140px;
+}
+
+.priceUnit {
+  width: 140px;
+}
+
+/* 图片上传 */
+.imageUpload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.imageUpload :global(.ant-upload-select-picture-card) {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+}
+
+.imageUpload :global(.ant-upload-list-picture-card-container) {
+  width: 100px;
+  height: 100px;
+}
+
+.imageUpload :global(.ant-upload-list-picture-card .ant-upload-list-item) {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+}
+
+.imageTip {
+  color: #999;
+  font-size: 12px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 标签 */
+.tagInput {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* 服务类型选择 */
+.serviceTypeGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.serviceTypeGroup :global(.ant-radio-button-wrapper) {
+  height: auto;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+}
+
+.serviceTypeGroup :global(.ant-radio-button-wrapper::before) {
+  display: none;
+}
+
+.serviceTypeGroup :global(.ant-radio-button-wrapper-checked) {
+  border-color: #667eea !important;
+  background: #f0f0ff !important;
+  color: #667eea !important;
+}
+
+/* 提交区域 */
+.submitArea {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.submitBtn {
+  min-width: 140px;
+  height: 44px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.submitBtn:hover {
+  opacity: 0.9;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .formRow {
+    flex-direction: column;
+  }
+
+  .categorySelect,
+  .conditionSelect,
+  .priceUnit {
+    width: 100%;
+  }
+
+  .serviceTypeGroup {
+    flex-direction: column;
+  }
+
+  .serviceTypeGroup :global(.ant-radio-button-wrapper) {
+    width: 100%;
+    text-align: center;
+  }
+}

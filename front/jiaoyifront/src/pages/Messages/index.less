@@ -1,0 +1,637 @@
+/* ===== 全局布局 ===== */
+.container {
+  display: flex;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* ===== 左侧边栏 ===== */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  height: 100%;
+  background: #f7f7f7;
+  border-right: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 侧边栏头部 */
+.sidebarHeader {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.sidebarTitle {
+  flex: 1;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  letter-spacing: 0;
+}
+
+.headerIcon {
+  font-size: 18px;
+  color: #333;
+  margin-left: 16px;
+  cursor: pointer;
+}
+
+/* 导航列表 */
+.navList {
+  padding: 8px 0;
+  background: #ffffff;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.navItem:hover {
+  background: #f0f0f0;
+}
+
+.navItemActive {
+  background: #e8f0fe !important;
+  border-right: 3px solid #1677ff;
+}
+
+.navIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1677ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.navText {
+  font-size: 14px;
+  color: #333;
+}
+
+/* 分隔线 */
+.divider {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 0;
+}
+
+/* 消息模块列表 */
+.moduleList {
+  padding: 8px 0;
+  background: #ffffff;
+}
+
+.moduleItem {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.moduleItem:hover {
+  background: #f0f0f0;
+}
+
+.moduleIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1677ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.moduleText {
+  font-size: 14px;
+  color: #333;
+}
+
+/* 联系人区域 */
+.contactsSection {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #f7f7f7;
+}
+
+.contactsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 6px;
+  flex-shrink: 0;
+}
+
+.contactsTitle {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+}
+
+.contactsAdd {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.contactsList {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 0 8px 8px;
+}
+
+.contactItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.contactItem:hover {
+  background: #e8e8e8;
+}
+
+.contactAvatar {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.contactAvatar :global(.ant-badge) {
+  display: block;
+}
+
+.contactName {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 中间消息列表 ===== */
+.middlePanel {
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 搜索区 */
+.searchSection {
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  width: 100%;
+}
+
+.searchInput :global(.ant-input-affix-wrapper) {
+  border-radius: 18px;
+  background: #f5f5f5;
+  border: none !important;
+  padding: 4px 12px;
+  height: 32px;
+  box-shadow: none !important;
+}
+
+.searchInput :global(.ant-input-affix-wrapper:hover),
+.searchInput :global(.ant-input-affix-wrapper:focus),
+.searchInput :global(.ant-input-affix-wrapper-focused) {
+  border: none !important;
+  box-shadow: none !important;
+  background: #f0f0f0;
+}
+
+.searchInput :global(.ant-input) {
+  background: transparent;
+  font-size: 13px;
+  color: #333;
+}
+
+.searchInput :global(.ant-input-prefix) {
+  margin-right: 6px;
+  color: #999;
+}
+
+/* 标签区 */
+.tabSection {
+  display: flex;
+  padding: 4px 12px 10px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tabItem {
+  flex: 1;
+  height: 26px;
+  line-height: 26px;
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tabItem:hover {
+  color: #1677ff;
+}
+
+.tabActive {
+  background: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: normal;
+}
+
+/* 会话列表 */
+.sessionList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.sessionItem {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.sessionItem:hover {
+  background: #f5f5f5;
+}
+
+.sessionActive {
+  background: #e8f0fe !important;
+}
+
+.sessionAvatarWrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.sessionAvatarWrap :global(.ant-badge) {
+  display: block;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 600;
+  z-index: 1;
+}
+
+.sessionInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sessionTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.sessionName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.sessionTime {
+  font-size: 11px;
+  color: #bfbfbf;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.sessionPreview {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 右侧聊天窗口 ===== */
+.chatPanel {
+  flex: 1;
+  height: 100%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* 聊天头部 */
+.chatHeader {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.chatUserInfo {
+  margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.chatName {
+  font-size: 15px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1.3;
+}
+
+.chatStatus {
+  font-size: 12px;
+  color: #52c41a;
+  line-height: 1.3;
+}
+
+/* 聊天消息区 */
+.chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: #f7f7f7;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chatMsg {
+  display: flex;
+  align-items: flex-end;
+  max-width: 70%;
+}
+
+.chatMsgMe {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chatMsgOther {
+  align-self: flex-start;
+}
+
+.chatMsgAvatar {
+  flex-shrink: 0;
+  margin: 0 8px;
+}
+
+.chatBubble {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.chatBubbleMe {
+  background: #1677ff;
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
+}
+
+.chatBubbleOther {
+  background: #ffffff;
+  color: #333333;
+  border-bottom-left-radius: 2px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+
+/* 输入区域 */
+.chatInputArea {
+  border-top: 1px solid #e8e8e8;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.inputToolbar {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  gap: 4px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.toolbarBtn {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #666;
+  border-radius: 2px;
+  cursor: pointer;
+  line-height: 24px;
+  transition: all 0.2s;
+}
+
+.toolbarBtn:hover {
+  color: #1677ff;
+  background: #f0f0f0;
+}
+
+.inputMain {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 10px;
+}
+
+.chatInput {
+  flex: 1;
+  height: 34px;
+  border-radius: 4px;
+  background: #f5f5f5 !important;
+  border: 1px solid #d9d9d9 !important;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.chatInput:hover,
+.chatInput:focus {
+  background: #f0f0f0 !important;
+  border-color: #1677ff !important;
+  box-shadow: none !important;
+}
+
+.chatInput :global(.ant-input) {
+  background: transparent;
+}
+
+.sendBtn {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 4px;
+  background: #1677ff;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: normal;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.2s;
+  user-select: none;
+}
+
+.sendBtn:hover {
+  background: #4096ff;
+}
+
+.sendBtnText {
+  font-size: 14px;
+}
+
+/* 空状态 */
+.chatEmpty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f7f7f7;
+}
+
+.chatEmptyIcon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 12px;
+}
+
+.chatEmpty p {
+  margin: 0;
+  font-size: 14px;
+  color: #bfbfbf;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1100px) {
+  .sidebar {
+    width: 180px;
+  }
+
+  .middlePanel {
+    width: 260px;
+  }
+
+  .contactsList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .sidebar,
+  .middlePanel,
+  .chatPanel {
+    width: 100%;
+    height: auto;
+    border: none;
+  }
+
+  .sidebar {
+    height: auto;
+    max-height: 160px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+
+  .navList,
+  .moduleList,
+  .divider,
+  .contactsSection {
+    display: none;
+  }
+
+  .middlePanel {
+    height: 280px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+
+  .chatPanel {
+    flex: 1;
+    min-height: 400px;
+  }
+}

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.OrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.entity.Order">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="type" property="type"/>
+        <result column="product_id" property="productId"/>
+        <result column="service_id" property="serviceId"/>
+        <result column="buyer_id" property="buyerId"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="price" property="price"/>
+        <result column="quantity" property="quantity"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="status" property="status"/>
+        <result column="contact" property="contact"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="paid_time" property="paidTime"/>
+        <result column="shipped_time" property="shippedTime"/>
+        <result column="completed_time" property="completedTime"/>
+        <result column="canceled_time" property="canceledTime"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM trade_order WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByOrderNo" resultMap="BaseResultMap">
+        SELECT * FROM trade_order WHERE order_no = #{orderNo} AND deleted = 0
+    </select>
+
+    <select id="findByBuyerId" resultMap="BaseResultMap">
+        SELECT * FROM trade_order
+        WHERE buyer_id = #{buyerId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findBySellerId" resultMap="BaseResultMap">
+        SELECT * FROM trade_order
+        WHERE seller_id = #{sellerId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findByUserId" resultMap="BaseResultMap">
+        SELECT * FROM trade_order
+        WHERE (buyer_id = #{userId} OR seller_id = #{userId}) AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findList" resultMap="BaseResultMap">
+        SELECT * FROM trade_order
+        WHERE deleted = 0
+        <if test="userId != null">
+            AND (buyer_id = #{userId} OR seller_id = #{userId})
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="type != null and type != ''">
+            AND type = #{type}
+        </if>
+        <if test="role == 'buy'">
+            AND buyer_id = #{userId}
+        </if>
+        <if test="role == 'sell'">
+            AND seller_id = #{userId}
+        </if>
+        ORDER BY create_time DESC
+        <if test="limit != null">
+            LIMIT #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM trade_order
+        WHERE deleted = 0
+        <if test="userId != null">
+            AND (buyer_id = #{userId} OR seller_id = #{userId})
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="type != null and type != ''">
+            AND type = #{type}
+        </if>
+        <if test="role == 'buy'">
+            AND buyer_id = #{userId}
+        </if>
+        <if test="role == 'sell'">
+            AND seller_id = #{userId}
+        </if>
+    </select>
+
+    <select id="findByProductId" resultMap="BaseResultMap">
+        SELECT * FROM trade_order
+        WHERE product_id = #{productId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trade_order (order_no, type, product_id, service_id, buyer_id, seller_id,
+                                 price, quantity, total_amount, status, contact, remark, create_time, update_time)
+        VALUES (#{orderNo}, #{type}, #{productId}, #{serviceId}, #{buyerId}, #{sellerId},
+                #{price}, #{quantity}, #{totalAmount}, #{status}, #{contact}, #{remark}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE trade_order
+        SET update_time = NOW()
+        <if test="status != null">, status = #{status}</if>
+        <if test="contact != null">, contact = #{contact}</if>
+        <if test="remark != null">, remark = #{remark}</if>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE trade_order
+        SET status = #{status}, update_time = NOW()
+        <if test="status == '已完成'">, completed_time = NOW()</if>
+        <if test="status == '已取消'">, canceled_time = NOW()</if>
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE trade_order SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>

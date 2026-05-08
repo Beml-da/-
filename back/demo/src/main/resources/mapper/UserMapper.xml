@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="school" property="school"/>
+        <result column="student_id" property="studentId"/>
+        <result column="credit_score" property="creditScore"/>
+        <result column="level" property="level"/>
+        <result column="is_verified" property="isVerified"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 根据用户名查询 -->
+    <select id="findByUsername" resultMap="BaseResultMap">
+        SELECT * FROM sys_user
+        WHERE username = #{username}
+          AND deleted = 0
+    </select>
+
+    <!-- 根据手机号查询 -->
+    <select id="findByPhone" resultMap="BaseResultMap">
+        SELECT * FROM sys_user
+        WHERE phone = #{phone}
+          AND deleted = 0
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM sys_user
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+    <!-- 新增用户 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (
+            username, password, nickname, avatar, phone, email,
+            school, student_id, credit_score, level, is_verified,
+            status, deleted, create_time, update_time
+        )
+        VALUES (
+            #{username}, #{password},
+            #{nickname, jdbcType=VARCHAR},
+            #{avatar, jdbcType=VARCHAR},
+            #{phone, jdbcType=VARCHAR},
+            #{email, jdbcType=VARCHAR},
+            #{school, jdbcType=VARCHAR},
+            #{studentId, jdbcType=VARCHAR},
+            #{creditScore, jdbcType=INTEGER},
+            #{level, jdbcType=INTEGER},
+            #{isVerified, jdbcType=INTEGER},
+            #{status, jdbcType=INTEGER},
+            #{deleted, jdbcType=INTEGER},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <!-- 更新用户 -->
+    <update id="update">
+        UPDATE sys_user
+        <set>
+            <if test="nickname != null">
+                nickname = #{nickname},
+            </if>
+            <if test="avatar != null">
+                avatar = #{avatar},
+            </if>
+            <if test="phone != null">
+                phone = #{phone},
+            </if>
+            <if test="email != null">
+                email = #{email},
+            </if>
+            <if test="school != null">
+                school = #{school},
+            </if>
+            <if test="studentId != null">
+                student_id = #{studentId},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <!-- 修改密码 -->
+    <update id="updatePassword">
+        UPDATE sys_user
+        SET password = #{password}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

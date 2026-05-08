@@ -1,0 +1,354 @@
+.container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+}
+
+/* 侧边栏 */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 84px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.searchBox {
+  margin-bottom: 20px;
+}
+
+.filterSection {
+  margin-bottom: 20px;
+}
+
+.filterTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterTitle :global(.anticon) {
+  color: #667eea;
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.categoryItem:hover {
+  background: #f5f7fa;
+  color: #333;
+}
+
+.categoryItem.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.categoryIcon {
+  font-size: 16px;
+}
+
+/* 主内容区 */
+.mainContent {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.resultCount {
+  font-size: 14px;
+  color: #666;
+}
+
+.count {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 8px;
+  font-size: 18px;
+  color: #999;
+}
+
+.viewToggle span {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.viewToggle span:hover,
+.viewToggle span.active {
+  color: #667eea;
+}
+
+/* 商品网格视图 */
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.productCardGrid {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.productCardGrid:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.productCardGrid .productImage {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  overflow: hidden;
+}
+
+.productCardGrid .productImage img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.productCardGrid .productCondition {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.productCardGrid .productInfo {
+  padding: 12px;
+}
+
+.productCardGrid .productTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productCardGrid .productPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.productCardGrid .currentPrice {
+  color: #ff4d4f;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.productCardGrid .originalPrice {
+  color: #999;
+  font-size: 11px;
+  text-decoration: line-through;
+}
+
+.productCardGrid .productMeta {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 商品列表视图 */
+.productList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.productCardList {
+  display: flex;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.productCardList:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.productCardList .productImage {
+  width: 180px;
+  height: 180px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.productCardList .productImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.productCardList .productCondition {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.productCardList .productInfo {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.productCardList .productTitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 8px;
+}
+
+.productCardList .productDesc {
+  font-size: 13px;
+  color: #999;
+  margin: 0 0 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.productCardList .productPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.productCardList .currentPrice {
+  color: #ff4d4f;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.productCardList .originalPrice {
+  color: #999;
+  font-size: 13px;
+  text-decoration: line-through;
+}
+
+.productCardList .productMeta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.productCardList .productStats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* 响应式 */
+@media (max-width: 1200px) {
+  .productGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 992px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  .productGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 12px;
+  }
+
+  .productGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .productCardList .productImage {
+    width: 120px;
+    height: 120px;
+  }
+}

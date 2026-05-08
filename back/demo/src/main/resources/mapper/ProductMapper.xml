@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ProductMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.entity.Product">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="images" property="images"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="sub_category" property="subCategory"/>
+        <result column="`condition`" property="condition"/>
+        <result column="status" property="status"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="location" property="location"/>
+        <result column="is_negotiable" property="isNegotiable"/>
+        <result column="tags" property="tags"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="sold_time" property="soldTime"/>
+        <result column="type" property="type"/>
+        <result column="service_type" property="serviceType"/>
+        <result column="price_unit" property="priceUnit"/>
+        <result column="rating" property="rating"/>
+        <result column="rating_count" property="ratingCount"/>
+        <result column="order_count" property="orderCount"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findList" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE deleted = 0
+        AND (
+            status = '在售'
+            OR status = '可用'
+            OR status = '上架'
+        )
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="category != null and category != ''">
+            <choose>
+                <when test="category == 'service'">AND type = 'service'</when>
+                <otherwise>AND category_id = #{category}</otherwise>
+            </choose>
+        </if>
+        <if test="condition != null and condition != ''">
+            AND `condition` = #{condition}
+        </if>
+        <if test="minPrice != null">
+            AND price &gt;= #{minPrice}
+        </if>
+        <if test="maxPrice != null">
+            AND price &lt;= #{maxPrice}
+        </if>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'price_asc'">price ASC</when>
+            <when test="sortBy == 'price_desc'">price DESC</when>
+            <when test="sortBy == 'hot'">favorite_count DESC, view_count DESC</when>
+            <when test="sortBy == 'newest'">create_time DESC</when>
+            <otherwise>create_time DESC</otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM sys_product WHERE deleted = 0
+        AND (
+            status = '在售'
+            OR status = '可用'
+            OR status = '上架'
+        )
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="category != null and category != ''">
+            <choose>
+                <when test="category == 'service'">AND type = 'service'</when>
+                <otherwise>AND category_id = #{category}</otherwise>
+            </choose>
+        </if>
+        <if test="condition != null and condition != ''">
+            AND `condition` = #{condition}
+        </if>
+        <if test="minPrice != null">
+            AND price &gt;= #{minPrice}
+        </if>
+        <if test="maxPrice != null">
+            AND price &lt;= #{maxPrice}
+        </if>
+    </select>
+
+    <select id="findBySellerId" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE seller_id = #{sellerId} AND type = 'product' AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findBySellerIdAndType" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE seller_id = #{sellerId} AND type = #{type} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findHot" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
+        ORDER BY view_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findNewest" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 最新发布（含商品，排除服务） -->
+    <select id="findNewestAll" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findServiceList" resultMap="BaseResultMap">
+        SELECT * FROM sys_product WHERE deleted = 0 AND status IN ('可用', '上架', '在售')
+        AND (type = 'service' OR type IS NULL OR type = '')
+        <if test="serviceType != null and serviceType != ''">
+            AND service_type = #{serviceType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countServiceList" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM sys_product WHERE deleted = 0 AND status IN ('可用', '上架', '在售')
+        AND (type = 'service' OR type IS NULL OR type = '')
+        <if test="serviceType != null and serviceType != ''">
+            AND service_type = #{serviceType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_product (
+            title, description, price, original_price, images,
+            <if test="categoryId != null and categoryId != ''">category_id,</if>
+            sub_category,
+            <if test="condition != null">`condition`,</if>
+            status,
+            view_count, favorite_count, seller_id, location,
+            is_negotiable, tags, deleted, create_time, update_time,
+            type, service_type, price_unit
+        ) VALUES (
+            #{title}, #{description}, #{price}, #{originalPrice},
+            #{images},
+            <if test="categoryId != null and categoryId != ''">#{categoryId},</if>
+            #{subCategory},
+            <if test="condition != null">#{condition},</if>
+            '在售',
+            0, 0, #{sellerId}, #{location},
+            #{isNegotiable}, #{tags}, 0, NOW(), NOW(),
+            #{type}, #{serviceType}, #{priceUnit}
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE sys_product
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="originalPrice != null">original_price = #{originalPrice},</if>
+            <if test="images != null">images = #{images},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="subCategory != null">sub_category = #{subCategory},</if>
+            <if test="condition != null">`condition` = #{condition},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="location != null">location = #{location},</if>
+            <if test="isNegotiable != null">is_negotiable = #{isNegotiable},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            <if test="status == '已售出'">sold_time = NOW(),</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE sys_product
+        SET status = #{status},
+            <if test="status == '已售出'">sold_time = NOW(),</if>
+            update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_product SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE sys_product SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <!-- 为现有商品和服务初始化浏览量（仅对view_count=0的商品随机生成浏览量，模拟真实数据） -->
+    <update id="initViewCounts">
+        UPDATE sys_product
+        SET view_count = FLOOR(50 + RAND() * 1500)
+        WHERE deleted = 0
+          AND (
+              (type = 'product' AND status = '在售')
+              OR (type = 'service' AND status IN ('可用', '上架', '在售'))
+          )
+          AND (view_count IS NULL OR view_count = 0)
+    </update>
+
+    <!-- 搜索建议：查询所有包含关键词的商品，显示标题+封面+价格 -->
+    <select id="searchSuggestions" resultType="java.util.Map">
+        SELECT
+            id AS id,
+            title AS title,
+            price AS price,
+            type AS itemType,
+            SUBSTRING_INDEX(
+                SUBSTRING_INDEX(images, '"', 2),
+                '"',
+                -1
+            ) AS coverImage
+        FROM sys_product
+        WHERE deleted = 0 AND status = '在售'
+          AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY view_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 统一搜索：商品+服务，不限制 type -->
+    <select id="searchAll" resultMap="BaseResultMap">
+        SELECT * FROM sys_product
+        WHERE deleted = 0
+          AND (
+            (status = '在售' AND type = 'product')
+            OR (status IN ('可用','上架','在售') AND type = 'service')
+          )
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'price_asc'">price ASC</when>
+            <when test="sortBy == 'price_desc'">price DESC</when>
+            <when test="sortBy == 'hot'">favorite_count DESC, view_count DESC</when>
+            <when test="sortBy == 'newest'">create_time DESC</when>
+            <otherwise>create_time DESC</otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统一搜索总数 -->
+    <select id="countSearchAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM sys_product
+        WHERE deleted = 0
+          AND (
+            (status = '在售' AND type = 'product')
+            OR (status IN ('可用','上架','在售') AND type = 'service')
+          )
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+</mapper>

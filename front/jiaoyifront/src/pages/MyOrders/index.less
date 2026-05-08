@@ -1,0 +1,289 @@
+.container {
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+/* 主卡片 */
+.mainCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* 空状态 */
+.empty {
+  padding: 60px 0;
+}
+
+/* 订单列表 */
+.orderList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orderCard {
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.orderCard:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+/* 订单头部 */
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.orderMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.orderNo {
+  font-size: 13px;
+  color: #999;
+}
+
+.typeTag,
+.statusTag,
+.roleTag {
+  font-size: 12px;
+  margin: 0;
+}
+
+.orderTime {
+  font-size: 13px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 订单内容 */
+.orderContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.productInfo {
+  flex: 1;
+}
+
+.productLink {
+  display: flex;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.productLink:hover .productTitle {
+  color: #667eea;
+}
+
+.productImage {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.productDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.productTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.productDesc {
+  font-size: 12px;
+  color: #999;
+}
+
+.serviceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.serviceType {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+/* 订单右侧 */
+.orderRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.orderAmount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.amountLabel {
+  font-size: 12px;
+  color: #999;
+}
+
+.amountValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff4d4f;
+}
+
+/* 订单底部 */
+.orderFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px dashed #f0f0f0;
+}
+
+.orderContact {
+  flex: 1;
+}
+
+.orderRemark {
+  font-size: 12px;
+  color: #999;
+  background: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.orderActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 评价表单 */
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reviewProduct {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviewProduct img {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.reviewProduct span {
+  font-size: 14px;
+  color: #333;
+}
+
+.reviewRating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviewRating span {
+  font-size: 14px;
+  color: #333;
+}
+
+.reviewContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reviewContent span {
+  font-size: 14px;
+  color: #333;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .orderContent {
+    flex-direction: column;
+  }
+
+  .orderRight {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .orderFooter {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .orderActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .orderActions :global(.ant-btn) {
+    flex: 1;
+    min-width: 80px;
+  }
+}

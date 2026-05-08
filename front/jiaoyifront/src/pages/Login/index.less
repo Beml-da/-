@@ -1,0 +1,249 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.12) 0%, transparent 40%),
+              radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08) 0%, transparent 35%);
+  pointer-events: none;
+}
+
+.loginBox {
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+}
+
+.titleSection {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.title {
+  color: #fff;
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.card :global(.ant-card-body) {
+  padding: 30px 32px;
+}
+
+.tabs :global(.ant-tabs-nav) {
+  margin-bottom: 24px;
+}
+
+.tabs :global(.ant-tabs-tab) {
+  font-size: 15px;
+}
+
+.codeInput {
+  display: flex;
+  gap: 10px;
+}
+
+.codeInput :global(.ant-input-affix-wrapper) {
+  flex: 1;
+}
+
+.codeBtn {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.submitBtn {
+  height: 44px;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.switchTabs {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  user-select: none;
+}
+
+.switchTabs span {
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.switchTabs .active {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.8);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footer a {
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.3s;
+}
+
+.footer a:hover {
+  color: #fff;
+}
+
+.divider {
+  margin: 0 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 15px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .card :global(.ant-card-body) {
+    padding: 24px 20px;
+  }
+
+  .codeInput {
+    flex-direction: column;
+  }
+
+  .codeBtn {
+    width: 100%;
+  }
+}
+
+/* 毛玻璃输入框样式 */
+.glassInput {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.glassInput:hover,
+.glassInput:focus,
+.glassInput:focus-within {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.glassInput :global(.ant-input) {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+.glassInput :global(.ant-input::placeholder) {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.glassInput :global(.ant-input-password-icon) {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.glassInput :global(.ant-input-prefix) {
+  margin-right: 10px;
+}
+
+/* 注册表单标签 */
+.card :global(.ant-form-item-label > label) {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.card :global(.ant-input-affix-wrapper) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 10px;
+}
+
+.card :global(.ant-input-affix-wrapper:hover),
+.card :global(.ant-input-affix-wrapper:focus),
+.card :global(.ant-input-affix-wrapper-focused) {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.card :global(.ant-input) {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+.card :global(.ant-input::placeholder) {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.card :global(.ant-input-prefix) {
+  margin-right: 10px;
+}
+
+.card :global(.ant-input-prefix > .anticon) {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 按钮样式适配 */
+.card :global(.ant-btn-default) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.card :global(.ant-btn-default:hover) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+
+/* 登录按钮 */
+.card :global(.ant-btn-primary) {
+  background: #fff;
+  border-color: transparent;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.card :global(.ant-btn-primary:hover) {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: transparent;
+  color: #5a6fd6;
+}

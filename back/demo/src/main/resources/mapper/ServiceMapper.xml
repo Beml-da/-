@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ServiceMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.entity.CampusService">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="price_unit" property="priceUnit"/>
+        <result column="service_type" property="serviceType"/>
+        <result column="status" property="status"/>
+        <result column="provider_id" property="providerId"/>
+        <result column="location" property="location"/>
+        <result column="tags" property="tags"/>
+        <result column="rating" property="rating"/>
+        <result column="rating_count" property="ratingCount"/>
+        <result column="order_count" property="orderCount"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM sys_service WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findList" resultMap="BaseResultMap">
+        SELECT * FROM sys_service WHERE deleted = 0 AND status = '可用'
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="serviceType != null and serviceType != ''">
+            AND service_type = #{serviceType}
+        </if>
+        ORDER BY order_count DESC, rating DESC, create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM sys_service WHERE deleted = 0 AND status = '可用'
+        <if test="serviceType != null and serviceType != ''">
+            AND service_type = #{serviceType}
+        </if>
+    </select>
+
+    <select id="countByKeyword" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM sys_service WHERE deleted = 0 AND status = '可用'
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="serviceType != null and serviceType != ''">
+            AND service_type = #{serviceType}
+        </if>
+    </select>
+
+    <select id="findByProviderId" resultMap="BaseResultMap">
+        SELECT * FROM sys_service WHERE provider_id = #{providerId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_service (
+            title, description, price, price_unit, service_type,
+            status, provider_id, location, tags,
+            rating, rating_count, order_count, deleted, create_time, update_time
+        ) VALUES (
+            #{title}, #{description}, #{price}, #{priceUnit}, #{serviceType},
+            '可用', #{providerId}, #{location}, #{tags},
+            5.00, 0, 0, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE sys_service
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="priceUnit != null">price_unit = #{priceUnit},</if>
+            <if test="serviceType != null">service_type = #{serviceType},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="location != null">location = #{location},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_service SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>
