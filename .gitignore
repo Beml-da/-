@@ -15,3 +15,6 @@ temp
 .vscode
 .idea
 .DS_Store
+
+# 上传文件（用户数据，不应该提交）
+uploads
