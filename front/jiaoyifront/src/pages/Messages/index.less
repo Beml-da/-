@@ -1,18 +1,19 @@
 /* ===== 全局布局 ===== */
 .container {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - 120px);
   overflow: hidden;
   background: #ffffff;
+  min-height: 0;
 }
 
 /* ===== 左侧边栏 ===== */
 .sidebar {
-  width: 220px;
+  width: 200px;
   flex-shrink: 0;
   height: 100%;
-  background: #f7f7f7;
-  border-right: 1px solid #e8e8e8;
+  background: #fbfbfb;
+  border-right: 1px solid #e6e6e6;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -20,43 +21,57 @@
 
 /* 侧边栏头部 */
 .sidebarHeader {
-  height: 50px;
+  height: 56px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 16px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e6e6e6;
   flex-shrink: 0;
   background: #ffffff;
 }
 
 .sidebarTitle {
-  flex: 1;
   font-size: 18px;
   font-weight: bold;
-  color: #333;
+  color: #262626;
   letter-spacing: 0;
 }
 
+.sidebarHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .headerIcon {
-  font-size: 18px;
-  color: #333;
-  margin-left: 16px;
+  font-size: 15px;
+  color: #595959;
   cursor: pointer;
+  transition: color 0.2s;
+}
+
+.headerIcon:hover {
+  color: #1890ff;
 }
 
 /* 导航列表 */
 .navList {
   padding: 8px 0;
   background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .navItem {
+  height: 40px;
   display: flex;
   align-items: center;
-  height: 44px;
   padding: 0 16px;
   cursor: pointer;
   transition: background 0.2s;
+  margin: 2px 8px;
+  border-radius: 6px;
+  gap: 10px;
 }
 
 .navItem:hover {
@@ -64,264 +79,218 @@
 }
 
 .navItemActive {
-  background: #e8f0fe !important;
-  border-right: 3px solid #1677ff;
+  background: #e6f4ff !important;
 }
 
 .navIcon {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #1677ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 11px;
-  margin-right: 12px;
+  font-size: 15px;
+  color: #595959;
   flex-shrink: 0;
+}
+
+.navItemActive .navIcon {
+  color: #1890ff;
 }
 
 .navText {
   font-size: 14px;
-  color: #333;
+  color: #262626;
+  font-weight: 500;
 }
 
-/* 分隔线 */
-.divider {
-  height: 1px;
-  background: #e8e8e8;
-  margin: 0;
+.navItemActive .navText {
+  color: #1890ff;
 }
 
-/* 消息模块列表 */
-.moduleList {
-  padding: 8px 0;
-  background: #ffffff;
-}
-
-.moduleItem {
-  display: flex;
-  align-items: center;
-  height: 38px;
-  padding: 0 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.moduleItem:hover {
-  background: #f0f0f0;
-}
-
-.moduleIcon {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #1677ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 11px;
-  margin-right: 12px;
-  flex-shrink: 0;
-}
-
-.moduleText {
-  font-size: 14px;
-  color: #333;
-}
-
-/* 联系人区域 */
-.contactsSection {
+/* 好友列表区域 */
+.friendListSection {
   flex: 1;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #f7f7f7;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.contactsHeader {
+.friendListTitle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+  letter-spacing: 0.5px;
   flex-shrink: 0;
 }
 
-.contactsTitle {
-  font-size: 12px;
-  color: #999;
-  font-weight: normal;
+.friendCount {
+  background: #f0f0f0;
+  color: #8c8c8c;
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
 }
 
-.contactsAdd {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #d9d9d9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: #fff;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.contactsList {
+.friendScroll {
   flex: 1;
   overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  padding: 0 8px 8px;
+  padding-bottom: 8px;
 }
 
-.contactItem {
+.friendItem {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 8px 4px;
+  padding: 8px 12px;
   cursor: pointer;
-  border-radius: 4px;
   transition: background 0.2s;
+  margin: 0 8px;
+  border-radius: 6px;
+  gap: 10px;
 }
 
-.contactItem:hover {
-  background: #e8e8e8;
+.friendItem:hover {
+  background: #f0f0f0;
 }
 
-.contactAvatar {
-  position: relative;
-  margin-bottom: 4px;
+.friendItemActive {
+  background: #e6f4ff !important;
 }
 
-.contactAvatar :global(.ant-badge) {
-  display: block;
+.friendItem :global(.ant-badge) {
+  display: flex;
 }
 
-.contactName {
-  font-size: 11px;
-  color: #666;
-  text-align: center;
-  max-width: 56px;
+.friendName {
+  flex: 1;
+  font-size: 13px;
+  color: #262626;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.friendChatBtn {
+  font-size: 13px;
+  color: #bfbfbf;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.friendItem:hover .friendChatBtn {
+  opacity: 1;
+  color: #1890ff;
+  background: #e6f4ff;
+}
+
 /* ===== 中间消息列表 ===== */
 .middlePanel {
-  width: 300px;
+  width: 320px;
   flex-shrink: 0;
   height: 100%;
   background: #ffffff;
-  border-right: 1px solid #e8e8e8;
+  border-right: 1px solid #e6e6e6;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* 搜索区 */
-.searchSection {
-  padding: 10px 12px 6px;
+/* 中间面板头部 */
+.middleHeader {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #e6e6e6;
   flex-shrink: 0;
+  background: #ffffff;
 }
 
-.searchInput {
-  width: 100%;
-}
-
-.searchInput :global(.ant-input-affix-wrapper) {
-  border-radius: 18px;
-  background: #f5f5f5;
-  border: none !important;
-  padding: 4px 12px;
-  height: 32px;
-  box-shadow: none !important;
-}
-
-.searchInput :global(.ant-input-affix-wrapper:hover),
-.searchInput :global(.ant-input-affix-wrapper:focus),
-.searchInput :global(.ant-input-affix-wrapper-focused) {
-  border: none !important;
-  box-shadow: none !important;
-  background: #f0f0f0;
-}
-
-.searchInput :global(.ant-input) {
-  background: transparent;
-  font-size: 13px;
-  color: #333;
-}
-
-.searchInput :global(.ant-input-prefix) {
-  margin-right: 6px;
-  color: #999;
+.middleTitle {
+  font-size: 18px;
+  font-weight: bold;
+  color: #262626;
 }
 
 /* 标签区 */
 .tabSection {
   display: flex;
-  padding: 4px 12px 10px;
-  gap: 4px;
+  padding: 12px 16px;
+  gap: 8px;
   flex-shrink: 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .tabItem {
-  flex: 1;
-  height: 26px;
-  line-height: 26px;
+  height: 28px;
+  padding: 0 12px;
+  line-height: 28px;
   text-align: center;
   font-size: 13px;
-  color: #666;
-  border-radius: 2px;
+  color: #595959;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  border: 1px solid transparent;
 }
 
 .tabItem:hover {
-  color: #1677ff;
+  color: #1890ff;
+  background: #e6f4ff;
 }
 
 .tabActive {
-  background: #1677ff !important;
+  background: #1890ff !important;
   color: #ffffff !important;
-  font-weight: normal;
+  font-weight: 500;
+  border-color: #1890ff !important;
+}
+
+.chatSearchInput {
+  border-radius: 6px;
+  background: #f5f5f5;
+  border-color: transparent;
+  font-size: 13px;
+}
+
+.chatSearchInput:hover,
+.chatSearchInput:focus {
+  background: #f0f0f0;
+  border-color: #1890ff;
+  box-shadow: none;
 }
 
 /* 会话列表 */
 .sessionList {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px 8px;
-  border-top: 1px solid #e8e8e8;
 }
 
 .sessionItem {
   display: flex;
   align-items: center;
-  padding: 10px 8px;
-  border-radius: 0;
+  padding: 12px 16px;
   cursor: pointer;
   transition: background 0.2s;
-  margin-bottom: 0;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #fafafa;
 }
 
 .sessionItem:hover {
-  background: #f5f5f5;
+  background: #fafafa;
 }
 
 .sessionActive {
-  background: #e8f0fe !important;
+  background: #e6f4ff !important;
 }
 
 .sessionAvatarWrap {
   position: relative;
   flex-shrink: 0;
-  margin-right: 10px;
+  margin-right: 12px;
 }
 
 .sessionAvatarWrap :global(.ant-badge) {
@@ -330,8 +299,8 @@
 
 .unreadBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -2px;
+  right: -2px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -357,29 +326,43 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .sessionName {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: #262626;
   flex-shrink: 0;
 }
 
 .sessionTime {
-  font-size: 11px;
+  font-size: 12px;
   color: #bfbfbf;
   flex-shrink: 0;
-  margin-left: 6px;
+  margin-left: 8px;
 }
 
 .sessionPreview {
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sessionMore {
+  font-size: 14px;
+  color: #d9d9d9;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.sessionMore:hover {
+  color: #595959;
 }
 
 /* ===== 右侧聊天窗口 ===== */
@@ -395,33 +378,61 @@
 
 /* 聊天头部 */
 .chatHeader {
-  height: 60px;
+  height: 56px;
   display: flex;
   align-items: center;
   padding: 0 20px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e6e6e6;
   flex-shrink: 0;
   background: #ffffff;
+  gap: 12px;
 }
 
 .chatUserInfo {
-  margin-left: 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  flex: 1;
 }
 
 .chatName {
   font-size: 15px;
-  font-weight: bold;
-  color: #333;
+  font-weight: 600;
+  color: #262626;
   line-height: 1.3;
 }
 
 .chatStatus {
   font-size: 12px;
-  color: #52c41a;
   line-height: 1.3;
+}
+
+.onlineStatus {
+  color: #52c41a;
+}
+
+.offlineStatus {
+  color: #bfbfbf;
+}
+
+.chatHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatHeaderIcon {
+  font-size: 14px;
+  color: #595959;
+  cursor: pointer;
+  padding: 6px;
+  transition: all 0.2s;
+}
+
+.chatHeaderIcon:hover {
+  color: #1890ff;
+  background: #f0f0f0;
+  border-radius: 4px;
 }
 
 /* 聊天消息区 */
@@ -456,7 +467,7 @@
 }
 
 .chatBubble {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.5;
@@ -465,21 +476,21 @@
 }
 
 .chatBubbleMe {
-  background: #1677ff;
+  background: #1890ff;
   color: #ffffff;
-  border-bottom-right-radius: 2px;
+  border-bottom-right-radius: 4px;
 }
 
 .chatBubbleOther {
   background: #ffffff;
-  color: #333333;
-  border-bottom-left-radius: 2px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  color: #262626;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* 输入区域 */
 .chatInputArea {
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #e6e6e6;
   background: #ffffff;
   flex-shrink: 0;
 }
@@ -487,41 +498,43 @@
 .inputToolbar {
   display: flex;
   align-items: center;
-  padding: 6px 16px;
+  padding: 8px 16px;
   gap: 4px;
   border-bottom: 1px solid #f0f0f0;
   background: #fafafa;
 }
 
 .toolbarBtn {
-  height: 24px;
-  padding: 0 10px;
-  font-size: 12px;
-  color: #666;
-  border-radius: 2px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #595959;
+  border-radius: 4px;
   cursor: pointer;
-  line-height: 24px;
   transition: all 0.2s;
 }
 
 .toolbarBtn:hover {
-  color: #1677ff;
-  background: #f0f0f0;
+  color: #1890ff;
+  background: #e6f4ff;
 }
 
 .inputMain {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
-  gap: 10px;
+  padding: 12px 16px;
+  gap: 12px;
 }
 
 .chatInput {
   flex: 1;
-  height: 34px;
+  height: 36px;
   border-radius: 4px;
   background: #f5f5f5 !important;
-  border: 1px solid #d9d9d9 !important;
+  border: 1px solid #f0f0f0 !important;
   padding: 0 12px;
   font-size: 14px;
 }
@@ -529,7 +542,7 @@
 .chatInput:hover,
 .chatInput:focus {
   background: #f0f0f0 !important;
-  border-color: #1677ff !important;
+  border-color: #1890ff !important;
   box-shadow: none !important;
 }
 
@@ -538,28 +551,24 @@
 }
 
 .sendBtn {
-  height: 34px;
-  padding: 0 16px;
+  height: 36px;
+  padding: 0 20px;
   border-radius: 4px;
-  background: #1677ff;
+  background: #1890ff;
   color: #ffffff;
   font-size: 14px;
-  font-weight: normal;
+  font-weight: 500;
   flex-shrink: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   transition: background 0.2s;
   user-select: none;
 }
 
 .sendBtn:hover {
-  background: #4096ff;
-}
-
-.sendBtnText {
-  font-size: 14px;
+  background: #40a9ff;
 }
 
 /* 空状态 */
@@ -584,6 +593,74 @@
   color: #bfbfbf;
 }
 
+/* ===== 加好友弹窗 ===== */
+.addFriendModal :global(.ant-modal-body) {
+  padding: 16px 24px;
+}
+
+.modalTitle {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modalSearchRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.modalSearchInput {
+  flex: 1;
+}
+
+.modalResultArea {
+  min-height: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.modalUserItem {
+  padding: 10px 4px !important;
+  transition: background 0.2s;
+  border-radius: 6px;
+  margin: 0 -8px;
+  padding: 8px !important;
+}
+
+.modalUserItem:hover {
+  background: #fafafa;
+}
+
+.modalUserName {
+  font-size: 14px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.modalUserStatus {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.addedTag {
+  font-size: 12px;
+  color: #52c41a;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  padding: 2px 8px;
+  line-height: 20px;
+}
+
+.modalEmpty {
+  text-align: center;
+  color: #bfbfbf;
+  font-size: 14px;
+  padding: 40px 0;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 1100px) {
   .sidebar {
@@ -591,11 +668,7 @@
   }
 
   .middlePanel {
-    width: 260px;
-  }
-
-  .contactsList {
-    grid-template-columns: repeat(2, 1fr);
+    width: 280px;
   }
 }
 
@@ -614,20 +687,12 @@
 
   .sidebar {
     height: auto;
-    max-height: 160px;
-    border-bottom: 1px solid #e8e8e8;
+    max-height: 200px;
+    border-bottom: 1px solid #e6e6e6;
   }
 
-  .navList,
-  .moduleList,
-  .divider,
-  .contactsSection {
+  .friendListSection {
     display: none;
-  }
-
-  .middlePanel {
-    height: 280px;
-    border-bottom: 1px solid #e8e8e8;
   }
 
   .chatPanel {

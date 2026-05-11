@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.FriendRequestMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO friend_request (from_user_id, to_user_id, status, message, deleted, create_time, update_time)
+        VALUES (#{fromUserId}, #{toUserId}, #{status}, #{message, jdbcType=VARCHAR}, 0, NOW(), NOW())
+    </insert>
+
+    <select id="findById" resultType="com.example.demo.entity.FriendRequest">
+        SELECT * FROM friend_request
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findPendingRequest" resultType="com.example.demo.entity.FriendRequest">
+        SELECT * FROM friend_request
+        WHERE from_user_id = #{fromUserId}
+          AND to_user_id = #{toUserId}
+          AND status = 0
+          AND deleted = 0
+    </select>
+
+    <select id="findPendingRequestsByToUserId" resultType="com.example.demo.entity.FriendRequest">
+        SELECT * FROM friend_request
+        WHERE to_user_id = #{toUserId}
+          AND status = 0
+          AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE friend_request
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE friend_request
+        SET deleted = 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

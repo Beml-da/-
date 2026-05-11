@@ -16,6 +16,11 @@ export default defineConfig({
       target: 'http://localhost:8080',
       changeOrigin: true,
     },
+    '/ws/chat': {
+      target: 'ws://localhost:8080',
+      ws: true,
+      changeOrigin: true,
+    },
   },
 
   layout: {
@@ -89,5 +94,4 @@ export default defineConfig({
   ],
 
   npmClient: 'pnpm',
-  utoopack: {},
 });

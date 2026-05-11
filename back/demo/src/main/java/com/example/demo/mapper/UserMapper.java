@@ -4,6 +4,8 @@ import com.example.demo.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface UserMapper {
 
@@ -36,4 +38,9 @@ public interface UserMapper {
      * 修改密码
      */
     int updatePassword(@Param("id") Long id, @Param("password") String password);
+
+    /**
+     * 根据关键词搜索用户
+     */
+    List<User> searchByKeyword(@Param("keyword") String keyword);
 }

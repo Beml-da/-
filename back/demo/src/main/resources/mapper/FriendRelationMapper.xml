@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.FriendRelationMapper">
+
+    <resultMap id="UserResultMap" type="com.example.demo.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="school" property="school"/>
+        <result column="student_id" property="studentId"/>
+        <result column="credit_score" property="creditScore"/>
+        <result column="level" property="level"/>
+        <result column="is_verified" property="isVerified"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO friend_relation (user_id, friend_id, deleted, create_time)
+        VALUES (#{userId}, #{friendId}, 0, NOW())
+    </insert>
+
+    <update id="delete">
+        UPDATE friend_relation
+        SET deleted = 1
+        WHERE user_id = #{userId} AND friend_id = #{friendId}
+    </update>
+
+    <select id="findFriendsByUserId" resultMap="UserResultMap">
+        SELECT u.* FROM sys_user u
+        INNER JOIN friend_relation fr ON u.id = fr.friend_id
+        WHERE fr.user_id = #{userId} AND fr.deleted = 0 AND u.deleted = 0
+    </select>
+
+    <select id="findRelation" resultType="com.example.demo.entity.FriendRelation">
+        SELECT * FROM friend_relation
+        WHERE user_id = #{userId} AND friend_id = #{friendId} AND deleted = 0
+    </select>
+
+    <select id="findRelationEither" resultType="com.example.demo.entity.FriendRelation">
+        SELECT * FROM friend_relation
+        WHERE ((user_id = #{userId} AND friend_id = #{friendId}) OR (user_id = #{friendId} AND friend_id = #{userId}))
+          AND deleted = 0
+    </select>
+
+</mapper>

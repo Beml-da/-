@@ -103,4 +103,16 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 根据关键词搜索用户 -->
+    <select id="searchByKeyword" resultMap="BaseResultMap">
+        SELECT * FROM sys_user
+        WHERE deleted = 0
+          AND (
+              nickname LIKE CONCAT('%', #{keyword}, '%')
+              OR username LIKE CONCAT('%', #{keyword}, '%')
+              OR school LIKE CONCAT('%', #{keyword}, '%')
+          )
+        LIMIT 20
+    </select>
+
 </mapper>
