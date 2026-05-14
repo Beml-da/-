@@ -1,5 +1,6 @@
 package com.example.demo.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class User {
@@ -14,6 +15,7 @@ public class User {
     private String studentId;
     private Integer creditScore;
     private Integer level;
+    private BigDecimal balance;
     private Integer isVerified;
     private Integer status;
     private Integer deleted;
@@ -61,6 +63,9 @@ public class User {
     public Integer getLevel() { return level; }
     public void setLevel(Integer level) { this.level = level; }
 
+    public BigDecimal getBalance() { return balance; }
+    public void setBalance(BigDecimal balance) { this.balance = balance; }
+
     public Integer getIsVerified() { return isVerified; }
     public void setIsVerified(Integer isVerified) { this.isVerified = isVerified; }
 
@@ -85,6 +90,7 @@ public class User {
                 ", phone='" + phone + '\'' +
                 ", email='" + email + '\'' +
                 ", status=" + status +
+                ", balance=" + balance +
                 '}';
     }
 }

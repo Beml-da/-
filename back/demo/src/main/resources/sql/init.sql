@@ -25,6 +25,7 @@ CREATE TABLE sys_user (
     student_id      VARCHAR(30)     DEFAULT NULL                COMMENT '学号',
     credit_score    INT             DEFAULT 80                   COMMENT '信用分(0-100)',
     level           INT             DEFAULT 1                   COMMENT '用户等级',
+    balance         DECIMAL(12,2)   DEFAULT 1000.00             COMMENT '账户余额(元)',
     is_verified     TINYINT(1)      DEFAULT 0                   COMMENT '是否认证: 0=否, 1=是',
     status          TINYINT(1)      DEFAULT 1                   COMMENT '状态: 1=正常, 0=禁用',
     deleted         TINYINT(1)      DEFAULT 0                   COMMENT '删除标记: 0=未删除, 1=已删除',
@@ -391,12 +392,12 @@ CREATE TABLE sys_log (
 -- ============================================
 
 -- 插入测试用户 (密码: 123456，明文存储)
-INSERT INTO sys_user (id, username, password, nickname, avatar, phone, email, school, student_id, credit_score, level, is_verified, status, deleted) VALUES
-(1, 'admin',          '123456', '系统管理员', 'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Admin',   '13800138000', 'admin@jiaoyihang.com',   'XX大学', '2021000001', 100, 10, 1, 1, 0),
-(2, 'study_lover',    '123456', '学霸小明',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Felix',  '138****8001', 'xiaoming@campus.edu',  'XX大学', '2021001234', 95, 8, 1, 1, 0),
-(3, 'book_worm',      '123456', '书虫学姐',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Aneka',  '139****8002', 'xuejie@campus.edu',    'XX大学', '2020005678', 98, 12, 1, 1, 0),
-(4, 'tech_geek',      '123456', '数码达人',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Max',    '137****8003', 'geek@campus.edu',      'XX大学', '2022003456', 92, 6, 1, 1, 0),
-(5, 'runner_service', '123456', '跑腿小王',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Jacky', '136****8004', 'runner@campus.edu',    'XX大学', '2023007890', 88, 4, 1, 1, 0);
+INSERT INTO sys_user (id, username, password, nickname, avatar, phone, email, school, student_id, credit_score, level, balance, is_verified, status, deleted) VALUES
+(1, 'admin',          '123456', '系统管理员', 'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Admin',   '13800138000', 'admin@jiaoyihang.com',   'XX大学', '2021000001', 100, 10, 1000.00, 1, 1, 0),
+(2, 'study_lover',    '123456', '学霸小明',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Felix',  '138****8001', 'xiaoming@campus.edu',  'XX大学', '2021001234', 95, 8, 1000.00, 1, 1, 0),
+(3, 'book_worm',      '123456', '书虫学姐',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Aneka',  '139****8002', 'xuejie@campus.edu',    'XX大学', '2020005678', 98, 12, 1000.00, 1, 1, 0),
+(4, 'tech_geek',      '123456', '数码达人',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Max',    '137****8003', 'geek@campus.edu',      'XX大学', '2022003456', 92, 6, 1000.00, 1, 1, 0),
+(5, 'runner_service', '123456', '跑腿小王',   'https://api.dicebear.com/7.x/avataaars/svg.jpgseed=Jacky', '136****8004', 'runner@campus.edu',    'XX大学', '2023007890', 88, 4, 1000.00, 1, 1, 0);
 
 -- 插入商品分类
 INSERT INTO sys_category (id, name, icon, color, sort_order, is_service) VALUES
@@ -479,3 +480,10 @@ INSERT INTO promo_user_coupon (user_id, coupon_id, status, expire_time) VALUES
 (3, 3, 0, DATE_ADD(NOW(), INTERVAL 7 DAY)),
 (4, 1, 0, DATE_ADD(NOW(), INTERVAL 30 DAY)),
 (4, 4, 0, DATE_ADD(NOW(), INTERVAL 3 DAY));
+
+-- ============================================
+-- 余额功能迁移脚本（给已有用户初始化余额）
+-- 如已有用户，可单独执行以下 SQL
+-- ============================================
+-- ALTER TABLE sys_user ADD COLUMN balance DECIMAL(12,2) DEFAULT 1000.00 COMMENT '账户余额(元)';
+-- UPDATE sys_user SET balance = 1000.00 WHERE balance IS NULL OR balance = 0;

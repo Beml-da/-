@@ -13,6 +13,7 @@ export interface UserInfo {
   gender?: 'male' | 'female' | 'secret';
   bio?: string;
   verified?: boolean;
+  balance?: number;
 }
 
 const TOKEN_KEY = 'token';

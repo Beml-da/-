@@ -1,4 +1,4 @@
-import { getService } from '@/utils/api';
+import { createOrder, getCurrentUser, getService } from '@/utils/api';
 import {
   ClockCircleOutlined,
   CustomerServiceOutlined,
@@ -40,14 +40,15 @@ const ServiceDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [messageVisible, setMessageVisible] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getService(Number(id))
-      .then((res: any) => {
-        if (res.code === 200 && res.data) {
-          const data = res.data;
+    Promise.all([getService(Number(id)), getCurrentUser()])
+      .then(([serviceRes, userRes]: any[]) => {
+        if (serviceRes.code === 200 && serviceRes.data) {
+          const data = serviceRes.data;
           if (typeof data.tags === 'string') {
             try {
               data.tags = JSON.parse(data.tags);
@@ -60,6 +61,9 @@ const ServiceDetailPage: React.FC = () => {
           setService(data);
         } else {
           setError('服务不存在或已下架');
+        }
+        if (userRes.code === 200 && userRes.data) {
+          setCurrentUser(userRes.data);
         }
       })
       .catch(() => {
@@ -102,6 +106,28 @@ const ServiceDetailPage: React.FC = () => {
   };
   const typeInfo =
     serviceTypeConfig[service.serviceType] || serviceTypeConfig['其他'];
+
+  const handleBook = async () => {
+    if (!currentUser) {
+      message.warning('请先登录');
+      navigate('/login');
+      return;
+    }
+    try {
+      const res = await createOrder({
+        type: '服务',
+        serviceId: Number(id),
+      });
+      if (res.code === 200) {
+        message.success('预约成功');
+        navigate('/orders');
+      } else {
+        message.error(res.message || '预约失败');
+      }
+    } catch {
+      message.error('预约失败，请稍后重试');
+    }
+  };
 
   const handleContact = () => {
     message.success('正在打开聊天窗口...');
@@ -255,17 +281,17 @@ const ServiceDetailPage: React.FC = () => {
             >
               联系服务者
             </Button>
-            <Button
-              size="large"
-              type="primary"
-              icon={<CustomerServiceOutlined />}
-              onClick={() =>
-                message.success('预约请求已发送，请等待服务者确认')
-              }
-              className={styles.buyBtn}
-            >
-              立即预约
-            </Button>
+            {(!currentUser || currentUser.id !== service.sellerId) && (
+              <Button
+                size="large"
+                type="primary"
+                icon={<CustomerServiceOutlined />}
+                onClick={handleBook}
+                className={styles.buyBtn}
+              >
+                立即预约
+              </Button>
+            )}
           </div>
 
           {/* 快速留言 */}

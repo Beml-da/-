@@ -24,6 +24,7 @@ import {
   StarOutlined,
   TrophyOutlined,
   UserOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from '@umijs/max';
 import {
@@ -248,6 +249,14 @@ const ProfilePage: React.FC = () => {
                   {userInfo?.creditScore || 0}
                 </span>
                 <span className={styles.statLabel}>信用分</span>
+              </div>
+              <div className={styles.statDivider} />
+              <div className={styles.statItem}>
+                <span className={styles.statValue}>
+                  <WalletOutlined style={{ color: '#52c41a' }} />{' '}
+                  {userInfo?.balance?.toFixed(2) || '0.00'}
+                </span>
+                <span className={styles.statLabel}>余额</span>
               </div>
             </div>
 

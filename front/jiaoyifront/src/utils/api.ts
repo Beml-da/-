@@ -40,6 +40,7 @@ export interface User {
   studentId?: string;
   creditScore?: number;
   level?: number;
+  balance?: number;
   isVerified?: boolean;
   status?: number;
   createTime?: string;
@@ -528,6 +529,35 @@ export async function cancelOrder(
   return request(`/api/orders/${id}/cancel`, {
     method: 'PUT',
     data: { reason },
+  });
+}
+
+/**
+ * 支付订单
+ */
+export async function payOrder(id: number): Promise<ApiResponse<null>> {
+  return request(`/api/orders/${id}/pay`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * 确认发货（卖家）
+ */
+export async function shipOrder(id: number): Promise<ApiResponse<null>> {
+  return request(`/api/orders/${id}/ship`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * 确认收货（买家）
+ */
+export async function confirmReceiveOrder(
+  id: number,
+): Promise<ApiResponse<null>> {
+  return request(`/api/orders/${id}/confirm`, {
+    method: 'PUT',
   });
 }
 

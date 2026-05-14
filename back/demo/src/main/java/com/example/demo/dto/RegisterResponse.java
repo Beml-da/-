@@ -1,6 +1,7 @@
 package com.example.demo.dto;
 
 import com.example.demo.entity.User;
+import java.math.BigDecimal;
 
 public class RegisterResponse {
 
@@ -36,15 +37,17 @@ public class RegisterResponse {
         private String nickname;
         private String phone;
         private String email;
+        private BigDecimal balance;
 
         public UserInfo() {}
 
-        public UserInfo(Long id, String username, String nickname, String phone, String email) {
+        public UserInfo(Long id, String username, String nickname, String phone, String email, BigDecimal balance) {
             this.id = id;
             this.username = username;
             this.nickname = nickname;
             this.phone = phone;
             this.email = email;
+            this.balance = balance;
         }
 
         public static UserInfo fromUser(User user) {
@@ -53,7 +56,8 @@ public class RegisterResponse {
                     user.getUsername(),
                     user.getNickname(),
                     user.getPhone(),
-                    user.getEmail()
+                    user.getEmail(),
+                    user.getBalance()
             );
         }
 
@@ -67,5 +71,7 @@ public class RegisterResponse {
         public void setPhone(String phone) { this.phone = phone; }
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
+        public BigDecimal getBalance() { return balance; }
+        public void setBalance(BigDecimal balance) { this.balance = balance; }
     }
 }

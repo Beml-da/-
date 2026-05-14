@@ -1,5 +1,7 @@
 package com.example.demo.dto;
 
+import java.math.BigDecimal;
+
 public class LoginResponse {
     private String token;
     private UserInfo user;
@@ -33,15 +35,17 @@ public class LoginResponse {
         private String nickname;
         private String phone;
         private String email;
+        private BigDecimal balance;
 
         public UserInfo() {}
 
-        public UserInfo(Long id, String username, String nickname, String phone, String email) {
+        public UserInfo(Long id, String username, String nickname, String phone, String email, BigDecimal balance) {
             this.id = id;
             this.username = username;
             this.nickname = nickname;
             this.phone = phone;
             this.email = email;
+            this.balance = balance;
         }
 
         public Long getId() {
@@ -83,5 +87,8 @@ public class LoginResponse {
         public void setEmail(String email) {
             this.email = email;
         }
+
+        public BigDecimal getBalance() { return balance; }
+        public void setBalance(BigDecimal balance) { this.balance = balance; }
     }
 }

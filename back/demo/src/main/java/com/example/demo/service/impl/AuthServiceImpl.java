@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -92,6 +93,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(request.getEmail());
         user.setStatus(1);
         user.setDeleted(0);
+        user.setBalance(new BigDecimal("1000.00"));
 
         // 4. 插入数据库
         int rows = userMapper.insert(user);
@@ -155,7 +157,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getNickname(),
                 user.getPhone(),
-                user.getEmail()
+                user.getEmail(),
+                user.getBalance()
         );
         return new LoginResponse(token, userInfo);
     }

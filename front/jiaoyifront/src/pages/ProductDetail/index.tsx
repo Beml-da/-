@@ -1,6 +1,6 @@
 import ProductImage from '@/components/ProductImage';
 import { CONDITION_OPTIONS } from '@/constants/campus';
-import { getProduct } from '@/utils/api';
+import { createOrder, getCurrentUser, getProduct } from '@/utils/api';
 import {
   ClockCircleOutlined,
   EnvironmentOutlined,
@@ -40,14 +40,15 @@ const ProductDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [messageVisible, setMessageVisible] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getProduct(Number(id))
-      .then((res: any) => {
-        if (res.code === 200 && res.data) {
-          const data = res.data;
+    Promise.all([getProduct(Number(id)), getCurrentUser()])
+      .then(([productRes, userRes]: any[]) => {
+        if (productRes.code === 200 && productRes.data) {
+          const data = productRes.data;
           if (typeof data.tags === 'string') {
             try {
               data.tags = JSON.parse(data.tags);
@@ -60,6 +61,9 @@ const ProductDetailPage: React.FC = () => {
           setProduct(data);
         } else {
           setError('商品不存在或已下架');
+        }
+        if (userRes.code === 200 && userRes.data) {
+          setCurrentUser(userRes.data);
         }
       })
       .catch(() => {
@@ -110,9 +114,21 @@ const ProductDetailPage: React.FC = () => {
 
   const images: string[] = parseJsonArray(product.images);
 
-  const handleBuy = () => {
-    message.success('已发起购买请求，请等待卖家确认');
-    navigate('/orders');
+  const handleBuy = async () => {
+    try {
+      const res = await createOrder({
+        type: '商品',
+        productId: Number(id),
+      });
+      if (res.code === 200) {
+        message.success('订单已创建，请尽快支付');
+        navigate('/orders');
+      } else {
+        message.error(res.message || '创建订单失败');
+      }
+    } catch {
+      message.error('创建订单失败，请稍后重试');
+    }
   };
 
   const handleContact = () => {
@@ -305,15 +321,17 @@ const ProductDetailPage: React.FC = () => {
             >
               联系卖家
             </Button>
-            <Button
-              size="large"
-              type="primary"
-              icon={<ShopOutlined />}
-              onClick={handleBuy}
-              className={styles.buyBtn}
-            >
-              立即购买
-            </Button>
+            {(!currentUser || currentUser.id !== product.sellerId) && (
+              <Button
+                size="large"
+                type="primary"
+                icon={<ShopOutlined />}
+                onClick={handleBuy}
+                className={styles.buyBtn}
+              >
+                立即购买
+              </Button>
+            )}
           </div>
 
           {/* 快速留言 */}

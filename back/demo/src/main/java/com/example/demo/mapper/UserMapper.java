@@ -43,4 +43,9 @@ public interface UserMapper {
      * 根据关键词搜索用户
      */
     List<User> searchByKeyword(@Param("keyword") String keyword);
+
+    /**
+     * 更新用户余额
+     */
+    int updateBalance(@Param("id") Long id, @Param("balance") java.math.BigDecimal balance);
 }

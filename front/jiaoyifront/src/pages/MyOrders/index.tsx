@@ -3,11 +3,13 @@ import { ORDER_STATUS_CONFIG } from '@/constants/campus';
 import { Order } from '@/types';
 import {
   cancelOrder as cancelOrderApi,
+  confirmReceiveOrder,
   getMyProducts,
   getMyServices,
   getOrders,
   getProduct,
-  updateOrderStatus,
+  payOrder,
+  shipOrder,
 } from '@/utils/api';
 import { getUserInfo } from '@/utils/useUser';
 import {
@@ -73,24 +75,36 @@ const MyOrdersPage: React.FC = () => {
       // 根据tab筛选
       switch (activeTab) {
         case 'buy':
-          console.log('[订单页面] 查询：我买到的');
           {
-            const res = await getOrders({ role: 'buy' });
-            console.log('[订单页面] buy 响应:', res);
-            if (res.code === 200 && res.data) {
-              orderList = res.data.list || [];
+            // 我买到的：我是买家，且已付款（待发货、待收货、已完成）
+            const statusList = ['待发货', '待收货', '已完成'];
+            for (const status of statusList) {
+              const res = await getOrders({ role: 'buy', status });
+              orderList.push(...(res.data?.list || []));
             }
+            // 去重
+            const orderMap = new Map();
+            orderList.forEach((o) => orderMap.set(o.id, o));
+            orderList = Array.from(orderMap.values());
           }
           break;
         case 'sell':
-          console.log('[订单页面] 查询：我卖出的');
           {
-            const res = await getOrders({ role: 'sell' });
-            console.log('[订单页面] sell 响应:', res);
-            if (res.code === 200 && res.data) {
-              orderList = res.data.list || [];
+            // 我卖出的：我是卖家，有人买了我的（待发货、待收货、已完成）
+            const statusList = ['待发货', '待收货', '已完成'];
+            for (const status of statusList) {
+              const res = await getOrders({ role: 'sell', status });
+              orderList.push(...(res.data?.list || []));
             }
-            // 同时加载我发布的商品和服务（还没卖出去的）
+            // 去重
+            const orderMap = new Map();
+            orderList.forEach((o) => orderMap.set(o.id, o));
+            orderList = Array.from(orderMap.values());
+          }
+          break;
+        case 'published':
+          {
+            // 我发布的：还没卖出去的商品和服务
             const [myProductsRes, myServicesRes] = await Promise.all([
               getMyProducts(),
               getMyServices(),
@@ -100,7 +114,6 @@ const MyOrdersPage: React.FC = () => {
             const myServices =
               myServicesRes.code === 200 ? myServicesRes.data || [] : [];
 
-            // 把发布的商品转为"待售"订单形式
             const pendingProducts = myProducts.map((p: any) => ({
               id: `pending-product-${p.id}`,
               orderNo: `PENDING-${p.id}`,
@@ -112,7 +125,7 @@ const MyOrdersPage: React.FC = () => {
               totalAmount: p.price,
               status: '待售',
               createTime: p.createTime,
-              isPending: true, // 标记为待售状态
+              isPending: true,
             }));
 
             const pendingServices = myServices.map((s: any) => ({
@@ -129,26 +142,13 @@ const MyOrdersPage: React.FC = () => {
               isPending: true,
             }));
 
-            orderList = [...orderList, ...pendingProducts, ...pendingServices];
-            console.log('[订单页面] 我卖出的 + 待售总计:', orderList.length);
-          }
-          break;
-        case 'completed':
-          {
-            const buyRes = await getOrders({ role: 'buy', status: '已完成' });
-            const sellRes = await getOrders({ role: 'sell', status: '已完成' });
-            const buyOrders = buyRes.data?.list || [];
-            const sellOrders = sellRes.data?.list || [];
-            const orderMap = new Map();
-            [...buyOrders, ...sellOrders].forEach((order) => {
-              orderMap.set(order.id, order);
-            });
-            orderList = Array.from(orderMap.values());
+            orderList = [...pendingProducts, ...pendingServices];
           }
           break;
         case 'pending':
           {
-            const statusList = ['待付款', '待发货', '待收货'];
+            // 进行中：还没确认收货的（待发货、待收货）
+            const statusList = ['待发货', '待收货'];
             for (const status of statusList) {
               const buyRes = await getOrders({ role: 'buy', status });
               const sellRes = await getOrders({ role: 'sell', status });
@@ -157,7 +157,7 @@ const MyOrdersPage: React.FC = () => {
             }
             // 去重
             const orderMap = new Map();
-            orderList.forEach((order) => orderMap.set(order.id, order));
+            orderList.forEach((o) => orderMap.set(o.id, o));
             orderList = Array.from(orderMap.values());
           }
           break;
@@ -206,14 +206,17 @@ const MyOrdersPage: React.FC = () => {
   }, [loadOrders]);
 
   const handleCancelOrder = (order: OrderExt) => {
+    const isPaid = order.status === '待发货';
     Modal.confirm({
       title: '确认取消订单',
-      content: '确定要取消这个订单吗？',
+      content: isPaid
+        ? '买家已付款，取消后金额将退回买家账户，确定要取消吗？'
+        : '确定要取消这个订单吗？',
       onOk: async () => {
         try {
           const res = await cancelOrderApi(order.id);
           if (res.code === 200) {
-            message.success('订单已取消');
+            message.success(isPaid ? '订单已取消，金额已退回' : '订单已取消');
             loadOrders();
           } else {
             message.error(res.message || '取消失败');
@@ -228,12 +231,12 @@ const MyOrdersPage: React.FC = () => {
   const handleConfirmReceive = (order: OrderExt) => {
     Modal.confirm({
       title: '确认收货',
-      content: '请确认您已收到商品，确认后将完成交易。',
+      content: '请确认您已收到商品/服务，确认后金额将转给卖家，交易完成。',
       onOk: async () => {
         try {
-          const res = await updateOrderStatus(order.id, '已完成');
+          const res = await confirmReceiveOrder(order.id);
           if (res.code === 200) {
-            message.success('交易完成！请对卖家进行评价');
+            message.success('交易完成！卖家已收到款项');
             setSelectedOrder(order);
             setReviewVisible(true);
             loadOrders();
@@ -320,9 +323,9 @@ const MyOrdersPage: React.FC = () => {
             label: '去支付',
             action: async () => {
               try {
-                const res = await updateOrderStatus(order.id, '待发货');
+                const res = await payOrder(order.id);
                 if (res.code === 200) {
-                  message.success('支付成功');
+                  message.success('支付成功，卖家即将发货');
                   loadOrders();
                 } else {
                   message.error(res.message || '支付失败');
@@ -354,9 +357,9 @@ const MyOrdersPage: React.FC = () => {
               label: '确认发货',
               action: async () => {
                 try {
-                  const res = await updateOrderStatus(order.id, '待收货');
+                  const res = await shipOrder(order.id);
                   if (res.code === 200) {
-                    message.success('已确认发货');
+                    message.success('已确认发货，等待买家确认收货');
                     loadOrders();
                   } else {
                     message.error(res.message || '操作失败');
@@ -439,8 +442,8 @@ const MyOrdersPage: React.FC = () => {
             { key: 'all', label: '全部订单' },
             { key: 'buy', label: '我买到的' },
             { key: 'sell', label: '我卖出的' },
+            { key: 'published', label: '我发布的' },
             { key: 'pending', label: '进行中' },
-            { key: 'completed', label: '已完成' },
           ]}
         />
 

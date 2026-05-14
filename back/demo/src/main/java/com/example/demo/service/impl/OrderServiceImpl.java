@@ -42,11 +42,33 @@ public class OrderServiceImpl implements OrderService {
         // 如果是商品订单，设置商品标题等信息
         if ("商品".equals(order.getType()) && order.getProductId() != null) {
             Product product = productMapper.findById(order.getProductId());
-            if (product != null) {
-                order.setPrice(product.getPrice());
-                order.setTotalAmount(product.getPrice());
-                order.setSellerId(product.getSellerId());
+            if (product == null) {
+                throw new RuntimeException("商品不存在");
             }
+            if (product.getSellerId().equals(buyerId)) {
+                throw new RuntimeException("不能购买自己的商品");
+            }
+            order.setPrice(product.getPrice());
+            order.setTotalAmount(product.getPrice());
+            order.setSellerId(product.getSellerId());
+            // 标记商品为已预订（仍在售，但有活跃订单，不会出现在商品列表）
+            productMapper.updateStatus(product.getId(), "已预订");
+        }
+
+        // 如果是服务订单，检查不能预约自己的服务
+        if ("服务".equals(order.getType()) && order.getServiceId() != null) {
+            Product service = productMapper.findById(order.getServiceId());
+            if (service == null) {
+                throw new RuntimeException("服务不存在");
+            }
+            if (service.getSellerId().equals(buyerId)) {
+                throw new RuntimeException("不能预约自己的服务");
+            }
+            order.setPrice(service.getPrice());
+            order.setTotalAmount(service.getPrice());
+            order.setSellerId(service.getSellerId());
+            // 标记服务为已预订
+            productMapper.updateStatus(service.getId(), "已预订");
         }
 
         orderMapper.insert(order);
@@ -112,6 +134,22 @@ public class OrderServiceImpl implements OrderService {
         if (!"待付款".equals(order.getStatus()) && !"待发货".equals(order.getStatus())) {
             throw new RuntimeException("当前状态不允许取消");
         }
+        // 如果买家已付款（待发货），退款给买家
+        if ("待发货".equals(order.getStatus())) {
+            User buyer = userMapper.findById(order.getBuyerId());
+            if (buyer != null) {
+                BigDecimal currentBalance = buyer.getBalance() != null ? buyer.getBalance() : BigDecimal.ZERO;
+                BigDecimal newBalance = currentBalance.add(order.getTotalAmount());
+                userMapper.updateBalance(order.getBuyerId(), newBalance);
+            }
+        }
+        // 取消后商品恢复在售
+        if ("商品".equals(order.getType()) && order.getProductId() != null) {
+            productMapper.updateStatus(order.getProductId(), "在售");
+        }
+        if ("服务".equals(order.getType()) && order.getServiceId() != null) {
+            productMapper.updateStatus(order.getServiceId(), "可用");
+        }
         orderMapper.updateStatus(orderId, "已取消");
     }
 
@@ -146,6 +184,20 @@ public class OrderServiceImpl implements OrderService {
         if (!"待收货".equals(order.getStatus())) {
             throw new RuntimeException("当前状态不允许确认收货");
         }
+        // 将钱转给卖家
+        User seller = userMapper.findById(order.getSellerId());
+        if (seller != null) {
+            BigDecimal currentSellerBalance = seller.getBalance() != null ? seller.getBalance() : BigDecimal.ZERO;
+            BigDecimal newSellerBalance = currentSellerBalance.add(order.getTotalAmount());
+            userMapper.updateBalance(order.getSellerId(), newSellerBalance);
+        }
+        // 商品标记为已售出
+        if ("商品".equals(order.getType()) && order.getProductId() != null) {
+            productMapper.updateStatus(order.getProductId(), "已售出");
+        }
+        if ("服务".equals(order.getType()) && order.getServiceId() != null) {
+            productMapper.updateStatus(order.getServiceId(), "已完成");
+        }
         orderMapper.updateStatus(orderId, "已完成");
     }
 
@@ -162,6 +214,18 @@ public class OrderServiceImpl implements OrderService {
         if (!"待付款".equals(order.getStatus())) {
             throw new RuntimeException("当前状态不允许支付");
         }
+        // 扣减买家余额
+        User buyer = userMapper.findById(userId);
+        if (buyer == null) {
+            throw new RuntimeException("买家账户不存在");
+        }
+        BigDecimal amount = order.getTotalAmount();
+        if (buyer.getBalance() == null || buyer.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("余额不足，无法支付");
+        }
+        BigDecimal newBuyerBalance = buyer.getBalance().subtract(amount);
+        userMapper.updateBalance(userId, newBuyerBalance);
+        // 订单状态改为待发货（等待卖家发货/确认）
         orderMapper.updateStatus(orderId, "待发货");
     }
 

@@ -36,118 +36,165 @@
     </select>
 
     <select id="findList" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE deleted = 0
-        AND (
-            status = '在售'
-            OR status = '可用'
-            OR status = '上架'
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0
+        AND p.status IN ('在售', '可用', '上架')
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
         )
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="category != null and category != ''">
             <choose>
-                <when test="category == 'service'">AND type = 'service'</when>
-                <otherwise>AND category_id = #{category}</otherwise>
+                <when test="category == 'service'">AND p.type = 'service'</when>
+                <otherwise>AND p.category_id = #{category}</otherwise>
             </choose>
         </if>
         <if test="condition != null and condition != ''">
-            AND `condition` = #{condition}
+            AND p.`condition` = #{condition}
         </if>
         <if test="minPrice != null">
-            AND price &gt;= #{minPrice}
+            AND p.price &gt;= #{minPrice}
         </if>
         <if test="maxPrice != null">
-            AND price &lt;= #{maxPrice}
+            AND p.price &lt;= #{maxPrice}
         </if>
         ORDER BY
         <choose>
-            <when test="sortBy == 'price_asc'">price ASC</when>
-            <when test="sortBy == 'price_desc'">price DESC</when>
-            <when test="sortBy == 'hot'">favorite_count DESC, view_count DESC</when>
-            <when test="sortBy == 'newest'">create_time DESC</when>
-            <otherwise>create_time DESC</otherwise>
+            <when test="sortBy == 'price_asc'">p.price ASC</when>
+            <when test="sortBy == 'price_desc'">p.price DESC</when>
+            <when test="sortBy == 'hot'">p.favorite_count DESC, p.view_count DESC</when>
+            <when test="sortBy == 'newest'">p.create_time DESC</when>
+            <otherwise>p.create_time DESC</otherwise>
         </choose>
         LIMIT #{offset}, #{limit}
     </select>
 
     <select id="count" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM sys_product WHERE deleted = 0
-        AND (
-            status = '在售'
-            OR status = '可用'
-            OR status = '上架'
+        SELECT COUNT(*) FROM sys_product p WHERE p.deleted = 0
+        AND p.status IN ('在售', '可用', '上架')
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
         )
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="category != null and category != ''">
             <choose>
-                <when test="category == 'service'">AND type = 'service'</when>
-                <otherwise>AND category_id = #{category}</otherwise>
+                <when test="category == 'service'">AND p.type = 'service'</when>
+                <otherwise>AND p.category_id = #{category}</otherwise>
             </choose>
         </if>
         <if test="condition != null and condition != ''">
-            AND `condition` = #{condition}
+            AND p.`condition` = #{condition}
         </if>
         <if test="minPrice != null">
-            AND price &gt;= #{minPrice}
+            AND p.price &gt;= #{minPrice}
         </if>
         <if test="maxPrice != null">
-            AND price &lt;= #{maxPrice}
+            AND p.price &lt;= #{maxPrice}
         </if>
     </select>
 
     <select id="findBySellerId" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE seller_id = #{sellerId} AND type = 'product' AND deleted = 0
-        ORDER BY create_time DESC
+        SELECT p.* FROM sys_product p
+        WHERE p.seller_id = #{sellerId} AND p.type = 'product' AND p.deleted = 0
+        AND p.status != '已售出'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status NOT IN ('已取消', '已删除')
+        )
+        ORDER BY p.create_time DESC
     </select>
 
     <select id="findBySellerIdAndType" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE seller_id = #{sellerId} AND type = #{type} AND deleted = 0
-        ORDER BY create_time DESC
+        SELECT p.* FROM sys_product p
+        WHERE p.seller_id = #{sellerId} AND p.type = #{type} AND p.deleted = 0
+        AND p.status != '已售出'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status NOT IN ('已取消', '已删除')
+        )
+        ORDER BY p.create_time DESC
     </select>
 
     <select id="findHot" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
-        ORDER BY view_count DESC
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0 AND p.status = '在售' AND p.type = 'product'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
+        ORDER BY p.view_count DESC
         LIMIT #{limit}
     </select>
 
     <select id="findNewest" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
-        ORDER BY create_time DESC
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0 AND p.status = '在售' AND p.type = 'product'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
+        ORDER BY p.create_time DESC
         LIMIT #{limit}
     </select>
 
     <!-- 最新发布（含商品，排除服务） -->
     <select id="findNewestAll" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE deleted = 0 AND status = '在售' AND type = 'product'
-        ORDER BY create_time DESC
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0 AND p.status = '在售' AND p.type = 'product'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
+        ORDER BY p.create_time DESC
         LIMIT #{limit}
     </select>
 
     <select id="findServiceList" resultMap="BaseResultMap">
-        SELECT * FROM sys_product WHERE deleted = 0 AND status IN ('可用', '上架', '在售')
-        AND (type = 'service' OR type IS NULL OR type = '')
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0 AND p.status IN ('可用', '上架', '在售')
+        AND (p.type = 'service' OR p.type IS NULL OR p.type = '')
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
         <if test="serviceType != null and serviceType != ''">
-            AND service_type = #{serviceType}
+            AND p.service_type = #{serviceType}
         </if>
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
-        ORDER BY create_time DESC
+        ORDER BY p.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
 
     <select id="countServiceList" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM sys_product WHERE deleted = 0 AND status IN ('可用', '上架', '在售')
-        AND (type = 'service' OR type IS NULL OR type = '')
+        SELECT COUNT(*) FROM sys_product p
+        WHERE p.deleted = 0 AND p.status IN ('可用', '上架', '在售')
+        AND (p.type = 'service' OR p.type IS NULL OR p.type = '')
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
         <if test="serviceType != null and serviceType != ''">
-            AND service_type = #{serviceType}
+            AND p.service_type = #{serviceType}
         </if>
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
     </select>
 
@@ -226,54 +273,69 @@
     <!-- 搜索建议：查询所有包含关键词的商品，显示标题+封面+价格 -->
     <select id="searchSuggestions" resultType="java.util.Map">
         SELECT
-            id AS id,
-            title AS title,
-            price AS price,
-            type AS itemType,
+            p.id AS id,
+            p.title AS title,
+            p.price AS price,
+            p.type AS itemType,
             SUBSTRING_INDEX(
-                SUBSTRING_INDEX(images, '"', 2),
+                SUBSTRING_INDEX(p.images, '"', 2),
                 '"',
                 -1
             ) AS coverImage
-        FROM sys_product
-        WHERE deleted = 0 AND status = '在售'
-          AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
-        ORDER BY view_count DESC
+        FROM sys_product p
+        WHERE p.deleted = 0 AND p.status = '在售'
+          AND NOT EXISTS (
+              SELECT 1 FROM trade_order o
+              WHERE o.product_id = p.id AND o.deleted = 0
+              AND o.status IN ('待付款', '待发货', '待收货')
+          )
+          AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY p.view_count DESC
         LIMIT #{limit}
     </select>
 
     <!-- 统一搜索：商品+服务，不限制 type -->
     <select id="searchAll" resultMap="BaseResultMap">
-        SELECT * FROM sys_product
-        WHERE deleted = 0
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0
           AND (
-            (status = '在售' AND type = 'product')
-            OR (status IN ('可用','上架','在售') AND type = 'service')
+            (p.status = '在售' AND p.type = 'product')
+            OR (p.status IN ('可用','上架','在售') AND p.type = 'service')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM trade_order o
+              WHERE o.product_id = p.id AND o.deleted = 0
+              AND o.status IN ('待付款', '待发货', '待收货')
           )
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY
         <choose>
-            <when test="sortBy == 'price_asc'">price ASC</when>
-            <when test="sortBy == 'price_desc'">price DESC</when>
-            <when test="sortBy == 'hot'">favorite_count DESC, view_count DESC</when>
-            <when test="sortBy == 'newest'">create_time DESC</when>
-            <otherwise>create_time DESC</otherwise>
+            <when test="sortBy == 'price_asc'">p.price ASC</when>
+            <when test="sortBy == 'price_desc'">p.price DESC</when>
+            <when test="sortBy == 'hot'">p.favorite_count DESC, p.view_count DESC</when>
+            <when test="sortBy == 'newest'">p.create_time DESC</when>
+            <otherwise>p.create_time DESC</otherwise>
         </choose>
         LIMIT #{offset}, #{limit}
     </select>
 
     <!-- 统一搜索总数 -->
     <select id="countSearchAll" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM sys_product
-        WHERE deleted = 0
+        SELECT COUNT(*) FROM sys_product p
+        WHERE p.deleted = 0
           AND (
-            (status = '在售' AND type = 'product')
-            OR (status IN ('可用','上架','在售') AND type = 'service')
+            (p.status = '在售' AND p.type = 'product')
+            OR (p.status IN ('可用','上架','在售') AND p.type = 'service')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM trade_order o
+              WHERE o.product_id = p.id AND o.deleted = 0
+              AND o.status IN ('待付款', '待发货', '待收货')
           )
         <if test="keyword != null and keyword != ''">
-            AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
         </if>
     </select>
 
