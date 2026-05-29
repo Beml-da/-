@@ -9,6 +9,7 @@ import com.example.demo.mapper.FriendRelationMapper;
 import com.example.demo.mapper.FriendRequestMapper;
 import com.example.demo.mapper.UserMapper;
 import com.example.demo.service.FriendService;
+import com.example.demo.websocket.ChatWebSocketUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -110,7 +111,9 @@ public class FriendServiceImpl implements FriendService {
     public List<FriendVO> getMyFriends() {
         Long currentUserId = getCurrentUserIdFromContext();
         List<User> friends = friendRelationMapper.findFriendsByUserId(currentUserId);
-        return friends.stream().map(FriendVO::new).collect(Collectors.toList());
+        return friends.stream()
+                .map(user -> new FriendVO(user, ChatWebSocketUtils.onlineUsers.containsKey(user.getId())))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -127,7 +130,9 @@ public class FriendServiceImpl implements FriendService {
             return List.of();
         }
         List<User> users = userMapper.searchByKeyword(keyword.trim());
-        return users.stream().map(FriendVO::new).collect(Collectors.toList());
+        return users.stream()
+                .map(user -> new FriendVO(user, ChatWebSocketUtils.onlineUsers.containsKey(user.getId())))
+                .collect(Collectors.toList());
     }
 
     @Override

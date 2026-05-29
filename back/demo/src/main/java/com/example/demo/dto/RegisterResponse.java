@@ -37,16 +37,18 @@ public class RegisterResponse {
         private String nickname;
         private String phone;
         private String email;
+        private String avatar;
         private BigDecimal balance;
 
         public UserInfo() {}
 
-        public UserInfo(Long id, String username, String nickname, String phone, String email, BigDecimal balance) {
+        public UserInfo(Long id, String username, String nickname, String phone, String email, String avatar, BigDecimal balance) {
             this.id = id;
             this.username = username;
             this.nickname = nickname;
             this.phone = phone;
             this.email = email;
+            this.avatar = avatar;
             this.balance = balance;
         }
 
@@ -57,6 +59,7 @@ public class RegisterResponse {
                     user.getNickname(),
                     user.getPhone(),
                     user.getEmail(),
+                    user.getAvatar(),
                     user.getBalance()
             );
         }
@@ -71,6 +74,8 @@ public class RegisterResponse {
         public void setPhone(String phone) { this.phone = phone; }
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
+        public String getAvatar() { return avatar; }
+        public void setAvatar(String avatar) { this.avatar = avatar; }
         public BigDecimal getBalance() { return balance; }
         public void setBalance(BigDecimal balance) { this.balance = balance; }
     }

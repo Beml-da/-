@@ -1,25 +1,40 @@
 // 运行时配置
 import { RunTimeLayoutConfig } from '@umijs/max';
-import { Avatar, Dropdown, Space, Typography, Badge, message } from 'antd';
+import { Avatar, Badge, Dropdown, message, Space, Typography } from 'antd';
 import {
   BellOutlined,
-  UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { MenuProps } from 'antd';
-import { clearLoginInfo, getUserInfo } from './utils/useUser';
+import { clearLoginInfo } from './utils/useUser';
 import { getPendingRequestCount } from './services/friend';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { chatManager } from './utils/chatManager';
 
 const { Text } = Typography;
 
-// 自定义头像组件
-const CustomAvatar: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+// 自定义头像组件：直接读取 localStorage + 监听事件
+const CustomAvatar: React.FC = () => {
+  const [user, setUser] = useState<any>(() => {
+    const stored = localStorage.getItem('userInfo');
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  useEffect(() => {
+    const handleLoginUpdate = () => {
+      const stored = localStorage.getItem('userInfo');
+      setUser(stored ? JSON.parse(stored) : null);
+    };
+    window.addEventListener('user-login-updated', handleLoginUpdate);
+    return () => window.removeEventListener('user-login-updated', handleLoginUpdate);
+  }, []);
+
   const handleLogout = () => {
+    chatManager.disconnect();
     clearLoginInfo();
     history.push('/login');
   };
@@ -51,7 +66,7 @@ const CustomAvatar: React.FC<{ currentUser: any }> = ({ currentUser }) => {
       <Space style={{ cursor: 'pointer' }}>
         <Avatar
           size={36}
-          src={currentUser?.avatar}
+          src={user?.avatar}
           icon={<UserOutlined />}
           style={{
             border: '2px solid #fff',
@@ -59,7 +74,7 @@ const CustomAvatar: React.FC<{ currentUser: any }> = ({ currentUser }) => {
           }}
         />
         <Text strong style={{ color: '#333' }}>
-          {currentUser?.nickname || currentUser?.username || '未登录'}
+          {user?.nickname || user?.username || '未登录'}
         </Text>
       </Space>
     </Dropdown>
@@ -86,10 +101,17 @@ const FloatingBall: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
     document.body.appendChild(portalRef.current);
     setMounted(true);
     chatManager.connect();
+
+    const handleLoginUpdate = () => {
+      chatManager.connect();
+    };
+    window.addEventListener('user-login-updated', handleLoginUpdate);
+
     return () => {
       if (portalRef.current) {
         document.body.removeChild(portalRef.current);
       }
+      window.removeEventListener('user-login-updated', handleLoginUpdate);
     };
   }, []);
 
@@ -273,7 +295,7 @@ export const layout: RunTimeLayoutConfig = (props) => {
     rightContentRender: () => (
       <>
         <FloatingBall pendingCount={props.initialState?.pendingCount ?? 0} />
-        <CustomAvatar currentUser={props.initialState?.currentUser} />
+        <CustomAvatar />
       </>
     ),
   };

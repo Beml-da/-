@@ -301,6 +301,20 @@ const MessagesPage: React.FC = () => {
   const defaultAvatar = (seed: number) =>
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
 
+  const [currentUserAvatar, setCurrentUserAvatar] = useState(() => {
+    const user = getUserInfo();
+    return user?.avatar || defaultAvatar(user?.id || 0);
+  });
+
+  useEffect(() => {
+    const handleLoginUpdate = () => {
+      const user = getUserInfo();
+      setCurrentUserAvatar(user?.avatar || defaultAvatar(user?.id || 0));
+    };
+    window.addEventListener('user-login-updated', handleLoginUpdate);
+    return () => window.removeEventListener('user-login-updated', handleLoginUpdate);
+  }, []);
+
   // 打开弹窗时加载请求列表
   const handleModalOpen = (open: boolean) => {
     setAddFriendModalOpen(open);
@@ -624,7 +638,7 @@ const MessagesPage: React.FC = () => {
                     </div>
                     {isMe && (
                       <Avatar
-                        src={defaultAvatar(0)}
+                        src={currentUserAvatar}
                         size={36}
                         className={styles.chatMsgAvatar}
                       />

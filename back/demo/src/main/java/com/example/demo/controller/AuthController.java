@@ -101,6 +101,9 @@ public class AuthController {
             if (params.containsKey("email")) {
                 updateUser.setEmail((String) params.get("email"));
             }
+            if (params.containsKey("avatar")) {
+                updateUser.setAvatar((String) params.get("avatar"));
+            }
 
             authService.updateProfile(updateUser);
             User updated = authService.getCurrentUser(token);

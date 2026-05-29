@@ -1,4 +1,5 @@
 import { loginByPassword, loginBySms, register } from '@/utils/api';
+import { history } from '@umijs/max';
 import { saveLoginInfo } from '@/utils/useUser';
 import {
   LockOutlined,
@@ -7,7 +8,6 @@ import {
   SafetyOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { history } from '@umijs/max';
 import { Button, Card, Form, Input, message } from 'antd';
 import { useState } from 'react';
 import styles from './index.less';
@@ -49,8 +49,9 @@ const LoginPage: React.FC = () => {
       const response = await loginByPassword(values);
       if (response.code === 200) {
         saveLoginInfo(response.data.token, response.data.user);
+        window.dispatchEvent(new CustomEvent('user-login-updated'));
         message.success('登录成功！');
-        window.location.href = '/home';
+        history.push('/home');
       } else {
         message.error(response.message || '登录失败');
         setLoading(false);
@@ -88,8 +89,9 @@ const LoginPage: React.FC = () => {
       const response = await loginBySms(values);
       if (response.code === 200) {
         saveLoginInfo(response.data.token, response.data.user);
+        window.dispatchEvent(new CustomEvent('user-login-updated'));
         message.success('登录成功！');
-        window.location.href = '/home';
+        history.push('/home');
       } else {
         message.error(response.message || '登录失败');
         setLoading(false);

@@ -21,6 +21,15 @@ public class FriendVO {
         this.online = false;
     }
 
+    public FriendVO(User user, boolean online) {
+        this.id = user.getId();
+        this.nickname = user.getNickname();
+        this.avatar = user.getAvatar();
+        this.school = user.getSchool();
+        this.creditScore = user.getCreditScore();
+        this.online = online;
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

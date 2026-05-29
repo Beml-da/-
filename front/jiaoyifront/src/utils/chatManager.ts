@@ -43,12 +43,14 @@ class ChatManager {
     const token = getToken();
     if (!token) {
       console.log('[Chat WS] 未登录，跳过连接');
+      this._cleanup();
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) {
       console.log('[Chat WS] 已连接，跳过');
       return;
     }
+    this._cleanup();
     console.log('[Chat WS] 正在连接... token:', token.substring(0, 20) + '...');
 
     const ws = new WebSocket(`${this.wsUrl}?token=${token}`);
@@ -90,9 +92,15 @@ class ChatManager {
     };
   }
 
-  disconnect() {
+  private _cleanup() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
+  }
+
+  disconnect() {
+    this._cleanup();
     this.ws?.close();
     this.ws = null;
     this._connected = false;
