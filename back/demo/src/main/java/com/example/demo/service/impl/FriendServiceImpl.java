@@ -29,6 +29,9 @@ public class FriendServiceImpl implements FriendService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private ChatWebSocketUtils chatWebSocketUtils;
+
     @Override
     @Transactional
     public void sendFriendRequest(Long toUserId, String message) {
@@ -112,7 +115,7 @@ public class FriendServiceImpl implements FriendService {
         Long currentUserId = getCurrentUserIdFromContext();
         List<User> friends = friendRelationMapper.findFriendsByUserId(currentUserId);
         return friends.stream()
-                .map(user -> new FriendVO(user, ChatWebSocketUtils.onlineUsers.containsKey(user.getId())))
+                .map(user -> new FriendVO(user, chatWebSocketUtils.isUserOnline(user.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -131,7 +134,7 @@ public class FriendServiceImpl implements FriendService {
         }
         List<User> users = userMapper.searchByKeyword(keyword.trim());
         return users.stream()
-                .map(user -> new FriendVO(user, ChatWebSocketUtils.onlineUsers.containsKey(user.getId())))
+                .map(user -> new FriendVO(user, chatWebSocketUtils.isUserOnline(user.getId())))
                 .collect(Collectors.toList());
     }
 

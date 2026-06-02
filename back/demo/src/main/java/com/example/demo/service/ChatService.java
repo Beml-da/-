@@ -13,4 +13,6 @@ public interface ChatService {
     void markRead(Long userId, Long fromId);
     int getTotalUnread(Long userId);
     void clearUnread(Long userId, Long targetUserId);
+    List<Object> getOfflineMessageIds(Long userId);
+    void clearOfflineMessages(Long userId);
 }

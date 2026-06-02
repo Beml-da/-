@@ -10,23 +10,32 @@ import com.example.demo.service.ChatService;
 import com.example.demo.websocket.ChatWebSocketUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ChatServiceImpl implements ChatService {
 
     private final ChatMessageMapper messageMapper;
     private final ChatSessionMapper sessionMapper;
+    private final ChatWebSocketUtils chatWebSocketUtils;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public ChatServiceImpl(ChatMessageMapper messageMapper, ChatSessionMapper sessionMapper) {
+    public ChatServiceImpl(ChatMessageMapper messageMapper,
+                           ChatSessionMapper sessionMapper,
+                           ChatWebSocketUtils chatWebSocketUtils,
+                           StringRedisTemplate redisTemplate) {
         this.messageMapper = messageMapper;
         this.sessionMapper = sessionMapper;
+        this.chatWebSocketUtils = chatWebSocketUtils;
+        this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
     }
@@ -36,7 +45,6 @@ public class ChatServiceImpl implements ChatService {
     public Map<String, Object> saveMessage(Long fromId, Long toId, String content, Long sessionId) {
         System.out.println("[ChatService] saveMessage fromId=" + fromId + " toId=" + toId + " content=" + content);
 
-        // 获取或创建会话（双向）
         ChatSession session1 = sessionMapper.findByUsers(fromId, toId);
         if (session1 == null) {
             ChatSession s = new ChatSession(fromId, toId);
@@ -49,16 +57,18 @@ public class ChatServiceImpl implements ChatService {
             sessionMapper.insert(s);
         }
 
-        // 保存消息
         ChatMessage msg = new ChatMessage(fromId, toId, content);
         msg.setSessionId(session1.getId());
         messageMapper.insert(msg);
 
-        // 更新会话的最后消息ID
         sessionMapper.updateLastMessage(session1.getId(), msg.getId());
 
-        // 增加未读数（接收者）
+        Long chatSessionId = session2 != null ? session2.getId() : session1.getId();
         sessionMapper.incrementUnread(toId, fromId);
+
+        String unreadKey = "unread:" + chatSessionId + ":" + toId;
+        redisTemplate.opsForValue().increment(unreadKey);
+        redisTemplate.expire(unreadKey, 24, TimeUnit.HOURS);
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", msg.getId());
@@ -74,7 +84,6 @@ public class ChatServiceImpl implements ChatService {
     public void sendAndNotify(Long fromId, Long toId, String content) {
         Map<String, Object> saved = saveMessage(fromId, toId, content, null);
 
-        // 构造消息 VO（带发送者信息）
         ChatMessageVO msgVO = messageMapper.findById((Long) saved.get("id"));
         if (msgVO == null) {
             System.out.println("[ChatService] 消息保存失败，msgVO为null");
@@ -87,14 +96,32 @@ public class ChatServiceImpl implements ChatService {
             wsData.put("data", msgVO);
             String json = objectMapper.writeValueAsString(wsData);
 
-            System.out.println("[ChatService] 推送消息给 toId=" + toId + " online=" + ChatWebSocketUtils.onlineUsers.containsKey(toId));
-            System.out.println("[ChatService] 推送确认给 fromId=" + fromId + " online=" + ChatWebSocketUtils.onlineUsers.containsKey(fromId));
+            Boolean toOnline = chatWebSocketUtils.isUserOnline(toId);
+            Boolean fromOnline = chatWebSocketUtils.isUserOnline(fromId);
+            System.out.println("[ChatService] 推送消息给 toId=" + toId + " online=" + toOnline);
+            System.out.println("[ChatService] 推送确认给 fromId=" + fromId + " online=" + fromOnline);
 
-            // 发给接收者（如果在线）
-            ChatWebSocketUtils.sendToUser(toId, json);
-            // 发回给发送者（确认）
-            ChatWebSocketUtils.sendToUser(fromId, json);
+            if (Boolean.TRUE.equals(toOnline)) {
+                chatWebSocketUtils.sendMessageToOnlineUser(toId, json);
+            } else {
+                pushOfflineMessage(toId, (Long) saved.get("id"));
+            }
+
+            if (Boolean.TRUE.equals(fromOnline)) {
+                chatWebSocketUtils.sendMessageToOnlineUser(fromId, json);
+            }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void pushOfflineMessage(Long toId, Long msgId) {
+        try {
+            redisTemplate.opsForList().rightPush("queue:msg:" + toId, msgId.toString());
+            redisTemplate.expire("queue:msg:" + toId, 7, TimeUnit.DAYS);
+            System.out.println("[ChatService] 消息 " + msgId + " 已写入离线队列 for userId=" + toId);
+        } catch (Exception e) {
+            System.out.println("[ChatService] 写入离线队列失败: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -111,7 +138,7 @@ public class ChatServiceImpl implements ChatService {
         List<ChatSessionVO> sessions = sessionMapper.findSessionsWithDetail(userId);
         for (ChatSessionVO s : sessions) {
             s.setTargetOnline(
-                ChatWebSocketUtils.onlineUsers.containsKey(s.getTargetUserId()) ? 1 : 0
+                chatWebSocketUtils.isUserOnline(s.getTargetUserId()) ? 1 : 0
             );
         }
         return sessions;
@@ -120,16 +147,46 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void markRead(Long userId, Long fromId) {
         messageMapper.markRead(userId, fromId);
+        ChatSession session = sessionMapper.findByUsers(userId, fromId);
+        if (session != null) {
+            redisTemplate.delete("unread:" + session.getId() + ":" + userId);
+        }
     }
 
     @Override
     public int getTotalUnread(Long userId) {
-        return messageMapper.countUnread(userId);
+        List<ChatSessionVO> sessions = sessionMapper.findSessionsWithDetail(userId);
+        int total = 0;
+        for (ChatSessionVO s : sessions) {
+            String unreadKey = "unread:" + s.getId() + ":" + userId;
+            String cached = redisTemplate.opsForValue().get(unreadKey);
+            if (cached != null) {
+                total += Integer.parseInt(cached);
+            } else {
+                total += s.getUnreadCount() != null ? s.getUnreadCount() : 0;
+            }
+        }
+        return total;
     }
 
     @Override
     public void clearUnread(Long userId, Long targetUserId) {
         sessionMapper.clearUnread(userId, targetUserId);
         messageMapper.markRead(userId, targetUserId);
+        ChatSession session = sessionMapper.findByUsers(userId, targetUserId);
+        if (session != null) {
+            redisTemplate.delete("unread:" + session.getId() + ":" + userId);
+        }
+    }
+
+    @Override
+    public List<Object> getOfflineMessageIds(Long userId) {
+        List<String> ids = redisTemplate.opsForList().range("queue:msg:" + userId, 0, -1);
+        return ids != null ? new java.util.ArrayList<>(ids) : List.of();
+    }
+
+    @Override
+    public void clearOfflineMessages(Long userId) {
+        redisTemplate.delete("queue:msg:" + userId);
     }
 }

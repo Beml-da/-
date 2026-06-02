@@ -1,7 +1,10 @@
 package com.example.demo.websocket;
 
+import com.example.demo.dto.ChatMessageVO;
+import com.example.demo.mapper.ChatMessageMapper;
 import com.example.demo.service.ChatService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -9,16 +12,26 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final ChatService chatService;
+    private final ChatMessageMapper messageMapper;
+    private final ChatWebSocketUtils chatWebSocketUtils;
 
-    public ChatWebSocketHandler(ChatService chatService) {
+    public ChatWebSocketHandler(ChatService chatService,
+                               ChatMessageMapper messageMapper,
+                               ChatWebSocketUtils chatWebSocketUtils) {
         this.chatService = chatService;
+        this.messageMapper = messageMapper;
+        this.chatWebSocketUtils = chatWebSocketUtils;
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
     }
 
     @Override
@@ -26,8 +39,33 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long userId = getUserId(session);
         System.out.println("[WS] afterConnectionEstablished userId: " + userId + " sessionId: " + session.getId());
         if (userId != null) {
-            ChatWebSocketUtils.onlineUsers.put(userId, session);
-            System.out.println("[WS] 在线用户数: " + ChatWebSocketUtils.onlineUsers.size());
+            chatWebSocketUtils.addOnlineUser(userId, session);
+            System.out.println("[WS] 在线用户数: " + chatWebSocketUtils.onlineUserCount());
+            deliverOfflineMessages(userId);
+        }
+    }
+
+    private void deliverOfflineMessages(Long userId) {
+        try {
+            List<Object> offlineMsgIds = chatService.getOfflineMessageIds(userId);
+            for (Object msgIdObj : offlineMsgIds) {
+                Long msgId = Long.valueOf(msgIdObj.toString());
+                ChatMessageVO msg = messageMapper.findById(msgId);
+                if (msg != null) {
+                    Map<String, Object> wsData = new HashMap<>();
+                    wsData.put("type", "chat");
+                    wsData.put("data", msg);
+                    String json = objectMapper.writeValueAsString(wsData);
+                    chatWebSocketUtils.sendMessageToOnlineUser(userId, json);
+                    System.out.println("[WS] 离线消息已投递 msgId=" + msgId + " to userId=" + userId);
+                }
+            }
+            if (!offlineMsgIds.isEmpty()) {
+                chatService.clearOfflineMessages(userId);
+            }
+        } catch (Exception e) {
+            System.out.println("[WS] 投递离线消息异常: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -38,6 +76,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
         try {
             String payload = message.getPayload();
+            @SuppressWarnings("unchecked")
             Map<String, Object> data = objectMapper.readValue(payload, Map.class);
             String type = (String) data.get("type");
 
@@ -64,7 +103,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long toId = ((Number) data.get("toId")).longValue();
         String content = (String) data.get("content");
 
-        // 保存消息到数据库，并发 WS 通知
         chatService.sendAndNotify(fromId, toId, content);
     }
 
@@ -73,8 +111,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long userId = getUserId(session);
         System.out.println("[WS] afterConnectionClosed userId: " + userId);
         if (userId != null) {
-            ChatWebSocketUtils.onlineUsers.remove(userId);
-            System.out.println("[WS] 在线用户数: " + ChatWebSocketUtils.onlineUsers.size());
+            chatWebSocketUtils.removeOnlineUser(userId);
+            System.out.println("[WS] 在线用户数: " + chatWebSocketUtils.onlineUserCount());
         }
     }
 

@@ -4,18 +4,34 @@ import com.example.demo.dto.ProductRequest;
 import com.example.demo.entity.Product;
 import com.example.demo.mapper.ProductMapper;
 import com.example.demo.service.ProductService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ProductServiceImpl implements ProductService {
 
+    private static final int HOT_TTL = 5;
+    private static final int NEWEST_TTL = 2;
+    private static final int DETAIL_TTL = 10;
+    private static final int SUGGESTION_TTL = 10;
+
     @Autowired
     private ProductMapper productMapper;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     @Override
     @Transactional
@@ -52,6 +68,11 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus("在售");
         product.setType("product");
         productMapper.insert(product);
+
+        evictHotCache();
+        evictNewestCache();
+        addSuggestionWord(request.getTitle());
+
         return product;
     }
 
@@ -71,22 +92,84 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Product getById(Long id) {
-        return productMapper.findById(id);
+        String key = "product:" + id;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, Product.class);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Product product = productMapper.findById(id);
+        if (product != null) {
+            try {
+                redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(product), DETAIL_TTL, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return product;
     }
 
     @Override
     public List<Product> getHotProducts(Integer limit) {
-        return productMapper.findHot(limit);
+        String key = "product:hot:" + limit;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        List<Product> products = productMapper.findHot(limit);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(products), HOT_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return products;
     }
 
     @Override
     public List<Product> getNewestProducts(Integer limit) {
-        return productMapper.findNewest(limit);
+        String key = "product:newest:" + limit;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        List<Product> products = productMapper.findNewest(limit);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(products), NEWEST_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return products;
     }
 
     @Override
     public List<Product> getNewestAllProducts(Integer limit) {
-        return productMapper.findNewestAll(limit);
+        String key = "product:newest:all:" + limit;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        List<Product> products = productMapper.findNewestAll(limit);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(products), NEWEST_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return products;
     }
 
     @Override
@@ -124,6 +207,11 @@ public class ProductServiceImpl implements ProductService {
         product.setIsNegotiable(request.getIsNegotiable());
         product.setTags(toJson(request.getTags()));
         productMapper.update(product);
+
+        redisTemplate.delete("product:" + id);
+        evictHotCache();
+        evictNewestCache();
+
         return productMapper.findById(id);
     }
 
@@ -138,6 +226,12 @@ public class ProductServiceImpl implements ProductService {
             throw new RuntimeException("无权修改此商品");
         }
         productMapper.updateStatus(id, status);
+
+        redisTemplate.delete("product:" + id);
+        if ("已下架".equals(status) || "已删除".equals(status)) {
+            evictHotCache();
+            evictNewestCache();
+        }
     }
 
     @Override
@@ -151,21 +245,53 @@ public class ProductServiceImpl implements ProductService {
             throw new RuntimeException("无权删除此商品");
         }
         productMapper.deleteById(id);
+
+        redisTemplate.delete("product:" + id);
+        evictHotCache();
+        evictNewestCache();
     }
 
     @Override
     public void incrementViewCount(Long id) {
         productMapper.incrementViewCount(id);
+        redisTemplate.delete("product:" + id);
+        evictHotCache();
     }
 
     @Override
     public void initViewCounts() {
         productMapper.initViewCounts();
+        evictHotCache();
     }
 
     @Override
     public List<Map<String, Object>> searchSuggestions(String keyword, Integer limit) {
-        return productMapper.searchSuggestions(keyword, limit);
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        String key = "suggestion:" + keyword.trim().toLowerCase();
+        try {
+            String cachedVal = redisTemplate.opsForValue().get(key);
+            if (cachedVal != null) {
+                List<Map<String, Object>> result = objectMapper.readValue(cachedVal,
+                    new TypeReference<List<Map<String, Object>>>() {});
+                if (result.size() <= limit) {
+                    return result;
+                }
+                return result.subList(0, limit);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        List<Map<String, Object>> suggestions = productMapper.searchSuggestions(keyword, limit);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(suggestions),
+                SUGGESTION_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return suggestions;
     }
 
     @Override
@@ -177,6 +303,33 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public Long countSearchAll(String keyword) {
         return productMapper.countSearchAll(keyword);
+    }
+
+    private void evictHotCache() {
+        for (int limit = 1; limit <= 50; limit += 9) {
+            redisTemplate.delete("product:hot:" + limit);
+        }
+        for (int limit = 1; limit <= 50; limit += 9) {
+            redisTemplate.delete("product:hot:all:" + limit);
+        }
+    }
+
+    private void evictNewestCache() {
+        for (int limit = 1; limit <= 50; limit += 9) {
+            redisTemplate.delete("product:newest:" + limit);
+            redisTemplate.delete("product:newest:all:" + limit);
+        }
+    }
+
+    private void addSuggestionWord(String title) {
+        if (title == null || title.trim().isEmpty()) return;
+        String key = "suggestion:" + title.trim().toLowerCase().split("\\s+")[0];
+        try {
+            redisTemplate.opsForSet().add(key, title);
+            redisTemplate.expire(key, SUGGESTION_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String toJson(Object obj) {

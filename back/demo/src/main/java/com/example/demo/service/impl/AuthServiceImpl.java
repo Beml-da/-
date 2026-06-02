@@ -11,6 +11,7 @@ import com.example.demo.service.AuthService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.Date;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -26,8 +28,12 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     private static final String SECRET_KEY = "jiaoyihang-trade-system-secret-key-2024-very-long-and-secure";
     private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000;
+    private static final long USER_CACHE_TTL = 1 * 60 * 60;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -45,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = generateToken(user);
+        cacheUserSession(user);
         return buildLoginResponse(user, token);
     }
 
@@ -64,6 +71,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = generateToken(user);
+        cacheUserSession(user);
         return buildLoginResponse(user, token);
     }
 
@@ -116,6 +124,27 @@ public class AuthServiceImpl implements AuthService {
             token = token.substring(7);
         }
         Long userId = JwtUtil.getUserIdFromToken(token);
+
+        Map<Object, Object> cached = redisTemplate.opsForHash().entries("user:session:" + userId);
+        if (cached != null && !cached.isEmpty()) {
+            User user = new User();
+            user.setId(userId);
+            user.setUsername((String) cached.get("username"));
+            user.setNickname((String) cached.get("nickname"));
+            user.setPhone((String) cached.get("phone"));
+            user.setEmail((String) cached.get("email"));
+            user.setAvatar((String) cached.get("avatar"));
+            String balance = (String) cached.get("balance");
+            if (balance != null && !balance.isEmpty()) {
+                user.setBalance(new BigDecimal(balance));
+            }
+            String status = (String) cached.get("status");
+            if (status != null && !status.isEmpty()) {
+                user.setStatus(Integer.parseInt(status));
+            }
+            return user;
+        }
+
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
@@ -129,11 +158,34 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("用户ID不能为空");
         }
         userMapper.update(user);
+        redisTemplate.delete("user:session:" + user.getId());
     }
 
     @Override
     public void logout(String token) {
-        // 如果使用 Redis 存储 Token，可以在这里删除
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        try {
+            long remaining = System.currentTimeMillis() + 1000;
+            try {
+                var claims = Jwts.parser()
+                        .verifyWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8)))
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload();
+                remaining = claims.getExpiration().getTime() - System.currentTimeMillis();
+            } catch (Exception ignored) {
+            }
+            if (remaining > 0) {
+                redisTemplate.opsForValue().set("blacklist:" + token, "1", remaining, TimeUnit.MILLISECONDS);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String generateToken(User user) {
@@ -162,5 +214,23 @@ public class AuthServiceImpl implements AuthService {
                 user.getBalance()
         );
         return new LoginResponse(token, userInfo);
+    }
+
+    private void cacheUserSession(User user) {
+        try {
+            Map<String, String> userMap = new HashMap<>();
+            userMap.put("id", user.getId() != null ? user.getId().toString() : "");
+            userMap.put("username", user.getUsername() != null ? user.getUsername() : "");
+            userMap.put("nickname", user.getNickname() != null ? user.getNickname() : "");
+            userMap.put("phone", user.getPhone() != null ? user.getPhone() : "");
+            userMap.put("email", user.getEmail() != null ? user.getEmail() : "");
+            userMap.put("avatar", user.getAvatar() != null ? user.getAvatar() : "");
+            userMap.put("balance", user.getBalance() != null ? user.getBalance().toString() : "");
+            userMap.put("status", user.getStatus() != null ? user.getStatus().toString() : "1");
+            redisTemplate.opsForHash().putAll("user:session:" + user.getId(), userMap);
+            redisTemplate.expire("user:session:" + user.getId(), USER_CACHE_TTL, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
