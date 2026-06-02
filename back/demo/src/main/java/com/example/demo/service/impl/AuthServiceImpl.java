@@ -34,6 +34,8 @@ public class AuthServiceImpl implements AuthService {
     private static final String SECRET_KEY = "jiaoyihang-trade-system-secret-key-2024-very-long-and-secure";
     private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000;
     private static final long USER_CACHE_TTL = 1 * 60 * 60;
+    private static final long SMS_CODE_TTL = 5;
+    private static final long SMS_SEND_INTERVAL = 60;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -62,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("该手机号未注册");
         }
 
-        if (!"123456".equals(code)) {
+        if (!verifySmsCode(phone, code)) {
             throw new RuntimeException("验证码错误");
         }
 
@@ -186,6 +188,42 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void sendSmsCode(String phone) {
+        if (phone == null || phone.isEmpty()) {
+            throw new RuntimeException("手机号不能为空");
+        }
+        if (!phone.matches("^1[3-9]\\d{9}$")) {
+            throw new RuntimeException("手机号格式不正确");
+        }
+
+        String intervalKey = "sms:interval:" + phone;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(intervalKey))) {
+            throw new RuntimeException("发送太频繁，请" + SMS_SEND_INTERVAL + "秒后重试");
+        }
+
+        String code = String.format("%06d", new java.util.Random().nextInt(999999));
+        String codeKey = "sms:code:" + phone;
+        redisTemplate.opsForValue().set(codeKey, code, SMS_CODE_TTL, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(intervalKey, "1", SMS_SEND_INTERVAL, TimeUnit.SECONDS);
+
+        System.out.println("[SMS] 发送验证码到 " + phone + "，验证码: " + code);
+    }
+
+    @Override
+    public boolean verifySmsCode(String phone, String code) {
+        if (phone == null || code == null) {
+            return false;
+        }
+        String codeKey = "sms:code:" + phone;
+        String stored = redisTemplate.opsForValue().get(codeKey);
+        if (stored != null && stored.equals(code)) {
+            redisTemplate.delete(codeKey);
+            return true;
+        }
+        return false;
     }
 
     private String generateToken(User user) {

@@ -73,6 +73,16 @@ export async function register(params: {
 }
 
 /**
+ * 发送短信验证码
+ */
+export async function sendSmsCode(phone: string): Promise<ApiResponse<null>> {
+  return request('/api/auth/sms/send', {
+    method: 'POST',
+    params: { phone },
+  });
+}
+
+/**
  * 手机验证码登录
  */
 export async function loginBySms(
@@ -80,7 +90,7 @@ export async function loginBySms(
 ): Promise<ApiResponse<LoginResponse>> {
   return request('/api/auth/login/sms', {
     method: 'POST',
-    data: params,
+    params: params,
   });
 }
 

@@ -61,6 +61,19 @@ public class AuthController {
     }
 
     /**
+     * 发送手机验证码
+     */
+    @PostMapping("/sms/send")
+    public Result<Void> sendSmsCode(@RequestParam String phone) {
+        try {
+            authService.sendSmsCode(phone);
+            return Result.success();
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
      * 获取当前登录用户信息
      */
     @GetMapping("/current")

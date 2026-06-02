@@ -1,4 +1,4 @@
-import { loginByPassword, loginBySms, register } from '@/utils/api';
+import { loginByPassword, loginBySms, register, sendSmsCode } from '@/utils/api';
 import { history } from '@umijs/max';
 import { saveLoginInfo } from '@/utils/useUser';
 import {
@@ -69,17 +69,26 @@ const LoginPage: React.FC = () => {
       message.warning('请先输入手机号');
       return;
     }
-    message.success('验证码已发送');
-    setSmsCountdown(60);
-    const timer = setInterval(() => {
-      setSmsCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    try {
+      const response = await sendSmsCode(phone);
+      if (response.code === 200) {
+        message.success('验证码已发送');
+        setSmsCountdown(60);
+        const timer = setInterval(() => {
+          setSmsCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        message.error(response.message || '发送失败');
+      }
+    } catch (error: any) {
+      message.error(error?.message || '发送失败，请稍后重试');
+    }
   };
 
   // 验证码登录

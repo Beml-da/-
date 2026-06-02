@@ -37,4 +37,14 @@ public interface AuthService {
      * 退出登录
      */
     void logout(String token);
+
+    /**
+     * 发送手机验证码
+     */
+    void sendSmsCode(String phone);
+
+    /**
+     * 验证手机验证码是否正确
+     */
+    boolean verifySmsCode(String phone, String code);
 }
