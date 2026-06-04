@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.annotation.RateLimit;
 import com.example.demo.common.JwtUtil;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ProductRequest;
@@ -25,6 +26,7 @@ public class ProductController {
     /**
      * 发布商品
      */
+    @RateLimit(keyType = RateLimit.KeyType.USER, count = 10, window = 60, message = "发布商品过于频繁，请稍后再试")
     @PostMapping
     public Result<Product> publish(
             @RequestHeader(value = "Authorization", required = false) String token,

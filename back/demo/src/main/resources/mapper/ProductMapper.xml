@@ -339,4 +339,16 @@
         </if>
     </select>
 
+    <select id="findHotServices" resultMap="BaseResultMap">
+        SELECT p.* FROM sys_product p
+        WHERE p.deleted = 0 AND p.status = '可用' AND p.type = 'service'
+        AND NOT EXISTS (
+            SELECT 1 FROM trade_order o
+            WHERE o.product_id = p.id AND o.deleted = 0
+            AND o.status IN ('待付款', '待发货', '待收货')
+        )
+        ORDER BY p.order_count DESC, p.view_count DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

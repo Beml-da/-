@@ -50,4 +50,9 @@ public interface ServiceService {
      * 更新服务状态
      */
     void updateStatus(Long id, Long providerId, String status);
+
+    /**
+     * 获取热门服务
+     */
+    List<Product> getHotServices(Integer limit);
 }

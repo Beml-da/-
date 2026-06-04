@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.annotation.RateLimit;
 import com.example.demo.common.Result;
 import com.example.demo.dto.FriendRequestVO;
 import com.example.demo.dto.FriendVO;
@@ -17,6 +18,7 @@ public class FriendController {
     @Autowired
     private FriendService friendService;
 
+    @RateLimit(keyType = RateLimit.KeyType.USER, count = 20, window = 60, message = "操作过于频繁，请稍后再试")
     @PostMapping("/add")
     public Result<Void> sendFriendRequest(@RequestBody Map<String, String> body) {
         try {

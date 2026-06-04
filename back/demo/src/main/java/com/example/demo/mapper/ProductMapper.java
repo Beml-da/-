@@ -121,4 +121,9 @@ public interface ProductMapper {
      * 统一搜索总数
      */
     Long countSearchAll(@Param("keyword") String keyword);
+
+    /**
+     * 热门服务（按预约数排序）
+     */
+    List<Product> findHotServices(@Param("limit") Integer limit);
 }

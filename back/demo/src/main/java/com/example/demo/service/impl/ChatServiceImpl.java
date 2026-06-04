@@ -8,8 +8,11 @@ import com.example.demo.mapper.ChatMessageMapper;
 import com.example.demo.mapper.ChatSessionMapper;
 import com.example.demo.service.ChatService;
 import com.example.demo.websocket.ChatWebSocketUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,11 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class ChatServiceImpl implements ChatService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatServiceImpl.class);
+
+    private static final int SESSION_TTL = 5;
+    private static final int HISTORY_TTL = 10;
 
     private final ChatMessageMapper messageMapper;
     private final ChatSessionMapper sessionMapper;
@@ -69,6 +77,11 @@ public class ChatServiceImpl implements ChatService {
         String unreadKey = "unread:" + chatSessionId + ":" + toId;
         redisTemplate.opsForValue().increment(unreadKey);
         redisTemplate.expire(unreadKey, 24, TimeUnit.HOURS);
+
+        evictSessionCache(fromId);
+        evictSessionCache(toId);
+        evictHistoryCache(fromId, toId);
+        evictHistoryCache(toId, fromId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", msg.getId());
@@ -128,18 +141,52 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ChatMessageVO> getHistory(Long userId, Long targetUserId) {
+        String key = buildHistoryCacheKey(userId, targetUserId);
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<ChatMessageVO>>() {});
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
         List<ChatMessageVO> messages = messageMapper.findHistory(userId, targetUserId);
         messageMapper.markRead(userId, targetUserId);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(messages), HISTORY_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
+        }
         return messages;
     }
 
     @Override
     public List<ChatSessionVO> getSessions(Long userId) {
+        String key = "chat:session:" + userId;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                List<ChatSessionVO> sessions = objectMapper.readValue(cached, new TypeReference<List<ChatSessionVO>>() {});
+                for (ChatSessionVO s : sessions) {
+                    s.setTargetOnline(
+                        chatWebSocketUtils.isUserOnline(s.getTargetUserId()) ? 1 : 0
+                    );
+                }
+                return sessions;
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
         List<ChatSessionVO> sessions = sessionMapper.findSessionsWithDetail(userId);
         for (ChatSessionVO s : sessions) {
             s.setTargetOnline(
                 chatWebSocketUtils.isUserOnline(s.getTargetUserId()) ? 1 : 0
             );
+        }
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(sessions), SESSION_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
         }
         return sessions;
     }
@@ -151,6 +198,8 @@ public class ChatServiceImpl implements ChatService {
         if (session != null) {
             redisTemplate.delete("unread:" + session.getId() + ":" + userId);
         }
+        evictSessionCache(userId);
+        evictHistoryCache(userId, fromId);
     }
 
     @Override
@@ -177,6 +226,8 @@ public class ChatServiceImpl implements ChatService {
         if (session != null) {
             redisTemplate.delete("unread:" + session.getId() + ":" + userId);
         }
+        evictSessionCache(userId);
+        evictHistoryCache(userId, targetUserId);
     }
 
     @Override
@@ -188,5 +239,25 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void clearOfflineMessages(Long userId) {
         redisTemplate.delete("queue:msg:" + userId);
+    }
+
+    private void evictSessionCache(Long userId) {
+        try {
+            redisTemplate.delete("chat:session:" + userId);
+        } catch (Exception e) {
+            log.error("删除会话列表缓存失败, userId={}", userId, e);
+        }
+    }
+
+    private void evictHistoryCache(Long userId, Long targetUserId) {
+        try {
+            redisTemplate.delete(buildHistoryCacheKey(userId, targetUserId));
+        } catch (Exception e) {
+            log.error("删除聊天记录缓存失败, userId={} targetUserId={}", userId, targetUserId, e);
+        }
+    }
+
+    private String buildHistoryCacheKey(Long userId, Long targetUserId) {
+        return String.format("chat:history:%d:%d", Math.min(userId, targetUserId), Math.max(userId, targetUserId));
     }
 }

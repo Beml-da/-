@@ -97,6 +97,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
+
+		<!-- AOP -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+			<version>3.4.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -107,6 +114,7 @@
 					<include>**/*.xml</include>
 					<include>**/*.properties</include>
 					<include>**/*.yml</include>
+					<include>**/*.lua</include>
 				</includes>
 			</resource>
 		</resources>

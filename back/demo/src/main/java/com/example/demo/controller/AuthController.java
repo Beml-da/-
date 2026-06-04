@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.annotation.RateLimit;
 import com.example.demo.common.Result;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.LoginResponse;
@@ -50,6 +51,7 @@ public class AuthController {
     /**
      * 手机验证码登录
      */
+    @RateLimit(keyType = RateLimit.KeyType.IP, count = 5, window = 60, message = "验证码错误次数过多，请稍后再试")
     @PostMapping("/login/sms")
     public Result<LoginResponse> loginBySms(@RequestParam String phone, @RequestParam String code) {
         try {
@@ -63,6 +65,7 @@ public class AuthController {
     /**
      * 发送手机验证码
      */
+    @RateLimit(keyType = RateLimit.KeyType.IP, count = 3, window = 60, message = "发送验证码过于频繁，请60秒后再试")
     @PostMapping("/sms/send")
     public Result<Void> sendSmsCode(@RequestParam String phone) {
         try {

@@ -10,15 +10,28 @@ import com.example.demo.mapper.FriendRequestMapper;
 import com.example.demo.mapper.UserMapper;
 import com.example.demo.service.FriendService;
 import com.example.demo.websocket.ChatWebSocketUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class FriendServiceImpl implements FriendService {
+
+    private static final Logger log = LoggerFactory.getLogger(FriendServiceImpl.class);
+
+    private static final int PROFILE_TTL = 10;
+    private static final int FRIEND_LIST_TTL = 5;
+    private static final int PENDING_TTL = 2;
 
     @Autowired
     private FriendRequestMapper friendRequestMapper;
@@ -32,6 +45,12 @@ public class FriendServiceImpl implements FriendService {
     @Autowired
     private ChatWebSocketUtils chatWebSocketUtils;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
+
     @Override
     @Transactional
     public void sendFriendRequest(Long toUserId, String message) {
@@ -41,7 +60,7 @@ public class FriendServiceImpl implements FriendService {
             throw new RuntimeException("不能添加自己为好友");
         }
 
-        User toUser = userMapper.findById(toUserId);
+        User toUser = getUserProfile(toUserId);
         if (toUser == null) {
             throw new RuntimeException("用户不存在");
         }
@@ -63,6 +82,8 @@ public class FriendServiceImpl implements FriendService {
 
         FriendRequest request = new FriendRequest(currentUserId, toUserId, message);
         friendRequestMapper.insert(request);
+
+        evictPendingCache(toUserId);
     }
 
     @Override
@@ -87,6 +108,10 @@ public class FriendServiceImpl implements FriendService {
 
         friendRelationMapper.insert(new FriendRelation(currentUserId, request.getFromUserId()));
         friendRelationMapper.insert(new FriendRelation(request.getFromUserId(), currentUserId));
+
+        evictPendingCache(currentUserId);
+        evictFriendListCache(currentUserId);
+        evictFriendListCache(request.getFromUserId());
     }
 
     @Override
@@ -113,10 +138,33 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public List<FriendVO> getMyFriends() {
         Long currentUserId = getCurrentUserIdFromContext();
-        List<User> friends = friendRelationMapper.findFriendsByUserId(currentUserId);
-        return friends.stream()
+        String key = "friend:list:" + currentUserId;
+
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                List<FriendVO> friends = objectMapper.readValue(cached, new TypeReference<List<FriendVO>>() {});
+                for (FriendVO friend : friends) {
+                    friend.setOnline(chatWebSocketUtils.isUserOnline(friend.getId()));
+                }
+                return friends;
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
+
+        List<User> userFriends = friendRelationMapper.findFriendsByUserId(currentUserId);
+        List<FriendVO> friends = userFriends.stream()
                 .map(user -> new FriendVO(user, chatWebSocketUtils.isUserOnline(user.getId())))
                 .collect(Collectors.toList());
+
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(friends), FRIEND_LIST_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
+        }
+
+        return friends;
     }
 
     @Override
@@ -125,6 +173,9 @@ public class FriendServiceImpl implements FriendService {
         Long currentUserId = getCurrentUserIdFromContext();
         friendRelationMapper.delete(currentUserId, friendId);
         friendRelationMapper.delete(friendId, currentUserId);
+
+        evictFriendListCache(currentUserId);
+        evictFriendListCache(friendId);
     }
 
     @Override
@@ -141,14 +192,33 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public List<FriendRequestVO> getPendingRequests() {
         Long currentUserId = getCurrentUserIdFromContext();
+        String key = "friend:pending:" + currentUserId;
+
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<FriendRequestVO>>() {});
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
+
         List<FriendRequest> requests = friendRequestMapper.findPendingRequestsByToUserId(currentUserId);
-        return requests.stream().map(req -> {
-            User fromUser = userMapper.findById(req.getFromUserId());
+        List<FriendRequestVO> result = requests.stream().map(req -> {
+            User fromUser = getUserProfile(req.getFromUserId());
             if (fromUser != null) {
                 return new FriendRequestVO(req, fromUser);
             }
             return null;
         }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(result), PENDING_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
+        }
+
+        return result;
     }
 
     @Override
@@ -159,5 +229,42 @@ public class FriendServiceImpl implements FriendService {
 
     private Long getCurrentUserIdFromContext() {
         return UserContext.getCurrentUserId();
+    }
+
+    private User getUserProfile(Long userId) {
+        String key = "user:profile:" + userId;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, User.class);
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
+        User user = userMapper.findById(userId);
+        if (user != null) {
+            try {
+                redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(user), PROFILE_TTL, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                log.error("Redis SET 失败, key={}", key, e);
+            }
+        }
+        return user;
+    }
+
+    private void evictFriendListCache(Long userId) {
+        try {
+            redisTemplate.delete("friend:list:" + userId);
+        } catch (Exception e) {
+            log.error("删除好友列表缓存失败, userId={}", userId, e);
+        }
+    }
+
+    private void evictPendingCache(Long userId) {
+        try {
+            redisTemplate.delete("friend:pending:" + userId);
+        } catch (Exception e) {
+            log.error("删除待处理请求缓存失败, userId={}", userId, e);
+        }
     }
 }

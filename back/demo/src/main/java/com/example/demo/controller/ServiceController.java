@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.annotation.RateLimit;
 import com.example.demo.common.JwtUtil;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ServiceRequest;
@@ -20,6 +21,7 @@ public class ServiceController {
     /**
      * 发布服务
      */
+    @RateLimit(keyType = RateLimit.KeyType.USER, count = 10, window = 60, message = "发布服务过于频繁，请稍后再试")
     @PostMapping
     public Result<Product> publish(
             @RequestHeader(value = "Authorization", required = false) String token,

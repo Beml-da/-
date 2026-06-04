@@ -7,6 +7,8 @@ import com.example.demo.service.ProductService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -14,15 +16,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class ProductServiceImpl implements ProductService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProductServiceImpl.class);
+
     private static final int HOT_TTL = 5;
     private static final int NEWEST_TTL = 2;
     private static final int DETAIL_TTL = 10;
     private static final int SUGGESTION_TTL = 10;
+    private static final int LIST_TTL = 5;
+    private static final int SEARCH_TTL = 5;
 
     @Autowired
     private ProductMapper productMapper;
@@ -71,6 +78,8 @@ public class ProductServiceImpl implements ProductService {
 
         evictHotCache();
         evictNewestCache();
+        evictListCache();
+        evictSearchCache();
         addSuggestionWord(request.getTitle());
 
         return product;
@@ -80,8 +89,23 @@ public class ProductServiceImpl implements ProductService {
     public List<Product> list(String keyword, String category, String condition,
                              Double minPrice, Double maxPrice, String sortBy,
                              Integer page, Integer pageSize) {
+        String key = buildListCacheKey(keyword, category, condition, minPrice, maxPrice, sortBy, page, pageSize);
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         int offset = (page - 1) * pageSize;
-        return productMapper.findList(keyword, category, condition, minPrice, maxPrice, sortBy, offset, pageSize);
+        List<Product> list = productMapper.findList(keyword, category, condition, minPrice, maxPrice, sortBy, offset, pageSize);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(list), LIST_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
     @Override
@@ -121,13 +145,14 @@ public class ProductServiceImpl implements ProductService {
                 return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Redis GET失败, key={}", key, e);
         }
         List<Product> products = productMapper.findHot(limit);
         try {
-            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(products), HOT_TTL, TimeUnit.MINUTES);
+            String json = objectMapper.writeValueAsString(products);
+            redisTemplate.opsForValue().set(key, json, HOT_TTL, TimeUnit.MINUTES);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Redis SET失败, key={}", key, e);
         }
         return products;
     }
@@ -211,6 +236,8 @@ public class ProductServiceImpl implements ProductService {
         redisTemplate.delete("product:" + id);
         evictHotCache();
         evictNewestCache();
+        evictListCache();
+        evictSearchCache();
 
         return productMapper.findById(id);
     }
@@ -231,6 +258,8 @@ public class ProductServiceImpl implements ProductService {
         if ("已下架".equals(status) || "已删除".equals(status)) {
             evictHotCache();
             evictNewestCache();
+            evictListCache();
+            evictSearchCache();
         }
     }
 
@@ -249,6 +278,8 @@ public class ProductServiceImpl implements ProductService {
         redisTemplate.delete("product:" + id);
         evictHotCache();
         evictNewestCache();
+        evictListCache();
+        evictSearchCache();
     }
 
     @Override
@@ -296,8 +327,23 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<Product> searchAll(String keyword, String sortBy, Integer page, Integer pageSize) {
+        String key = buildSearchCacheKey(keyword, sortBy, page, pageSize);
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         int offset = (page - 1) * pageSize;
-        return productMapper.searchAll(keyword, sortBy, offset, pageSize);
+        List<Product> list = productMapper.searchAll(keyword, sortBy, offset, pageSize);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(list), SEARCH_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
     @Override
@@ -306,18 +352,24 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void evictHotCache() {
-        for (int limit = 1; limit <= 50; limit += 9) {
-            redisTemplate.delete("product:hot:" + limit);
-        }
-        for (int limit = 1; limit <= 50; limit += 9) {
-            redisTemplate.delete("product:hot:all:" + limit);
+        try {
+            Set<String> keys = redisTemplate.keys("product:hot:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     private void evictNewestCache() {
-        for (int limit = 1; limit <= 50; limit += 9) {
-            redisTemplate.delete("product:newest:" + limit);
-            redisTemplate.delete("product:newest:all:" + limit);
+        try {
+            Set<String> keys = redisTemplate.keys("product:newest:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -327,6 +379,47 @@ public class ProductServiceImpl implements ProductService {
         try {
             redisTemplate.opsForSet().add(key, title);
             redisTemplate.expire(key, SUGGESTION_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String buildListCacheKey(String keyword, String category, String condition,
+                                     Double minPrice, Double maxPrice, String sortBy,
+                                     Integer page, Integer pageSize) {
+        return String.format("product:list:%s:%s:%s:%s:%s:%s:%d:%d",
+                nvl(keyword), nvl(category), nvl(condition),
+                minPrice != null ? minPrice.toString() : "",
+                maxPrice != null ? maxPrice.toString() : "",
+                nvl(sortBy), page, pageSize);
+    }
+
+    private String buildSearchCacheKey(String keyword, String sortBy, Integer page, Integer pageSize) {
+        return String.format("product:search:%s:%s:%d:%d",
+                nvl(keyword), nvl(sortBy), page, pageSize);
+    }
+
+    private String nvl(String s) {
+        return s != null ? s : "";
+    }
+
+    private void evictListCache() {
+        try {
+            Set<String> keys = redisTemplate.keys("product:list:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void evictSearchCache() {
+        try {
+            Set<String> keys = redisTemplate.keys("product:search:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

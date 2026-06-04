@@ -4,17 +4,37 @@ import com.example.demo.dto.ServiceRequest;
 import com.example.demo.entity.Product;
 import com.example.demo.mapper.ProductMapper;
 import com.example.demo.service.ServiceService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ServiceServiceImpl implements ServiceService {
 
+    private static final Logger log = LoggerFactory.getLogger(ServiceServiceImpl.class);
+
+    private static final int DETAIL_TTL = 10;
+    private static final int LIST_TTL = 5;
+    private static final int HOT_TTL = 5;
+
     @Autowired
     private ProductMapper productMapper;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     @Override
     @Transactional
@@ -44,13 +64,33 @@ public class ServiceServiceImpl implements ServiceService {
         service.setPriceUnit(request.getPriceUnit() != null ? request.getPriceUnit() : "/次");
         service.setIsNegotiable(request.getIsNegotiable() != null ? request.getIsNegotiable() : 0);
         productMapper.insert(service);
+
+        evictDetailCache(service.getId());
+        evictListCache();
+        evictHotCache();
+
         return service;
     }
 
     @Override
     public List<Product> list(String keyword, String serviceType, Integer page, Integer pageSize) {
+        String key = buildListCacheKey(keyword, serviceType, page, pageSize);
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
         int offset = (page - 1) * pageSize;
-        return productMapper.findServiceList(keyword, serviceType, offset, pageSize);
+        List<Product> list = productMapper.findServiceList(keyword, serviceType, offset, pageSize);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(list), LIST_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
+        }
+        return list;
     }
 
     @Override
@@ -65,12 +105,49 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Override
     public Product getById(Long id) {
-        return productMapper.findById(id);
+        String key = "service:" + id;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, Product.class);
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
+        Product service = productMapper.findById(id);
+        if (service != null) {
+            try {
+                redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(service), DETAIL_TTL, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                log.error("Redis SET 失败, key={}", key, e);
+            }
+        }
+        return service;
     }
 
     @Override
     public List<Product> getByProviderId(Long providerId) {
         return productMapper.findBySellerIdAndType(providerId, "service");
+    }
+
+    @Override
+    public List<Product> getHotServices(Integer limit) {
+        String key = "service:hot:" + limit;
+        try {
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<List<Product>>() {});
+            }
+        } catch (Exception e) {
+            log.error("Redis GET 失败, key={}", key, e);
+        }
+        List<Product> services = productMapper.findHotServices(limit);
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(services), HOT_TTL, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Redis SET 失败, key={}", key, e);
+        }
+        return services;
     }
 
     @Override
@@ -101,6 +178,11 @@ public class ServiceServiceImpl implements ServiceService {
         service.setPriceUnit(request.getPriceUnit());
         service.setIsNegotiable(request.getIsNegotiable());
         productMapper.update(service);
+
+        evictDetailCache(id);
+        evictListCache();
+        evictHotCache();
+
         return productMapper.findById(id);
     }
 
@@ -115,6 +197,10 @@ public class ServiceServiceImpl implements ServiceService {
             throw new RuntimeException("无权删除此服务");
         }
         productMapper.deleteById(id);
+
+        evictDetailCache(id);
+        evictListCache();
+        evictHotCache();
     }
 
     @Override
@@ -128,6 +214,51 @@ public class ServiceServiceImpl implements ServiceService {
             throw new RuntimeException("无权修改此服务");
         }
         productMapper.updateStatus(id, status);
+
+        evictDetailCache(id);
+        if ("已删除".equals(status) || "已下架".equals(status) || "不可用".equals(status)) {
+            evictListCache();
+            evictHotCache();
+        }
+    }
+
+    private void evictDetailCache(Long id) {
+        try {
+            redisTemplate.delete("service:" + id);
+        } catch (Exception e) {
+            log.error("删除服务缓存失败, id={}", id, e);
+        }
+    }
+
+    private void evictListCache() {
+        try {
+            Set<String> keys = redisTemplate.keys("service:list:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            log.error("删除服务列表缓存失败", e);
+        }
+    }
+
+    private void evictHotCache() {
+        try {
+            Set<String> keys = redisTemplate.keys("service:hot:*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            log.error("删除热门服务缓存失败", e);
+        }
+    }
+
+    private String buildListCacheKey(String keyword, String serviceType, Integer page, Integer pageSize) {
+        return String.format("service:list:%s:%s:%d:%d",
+                nvl(keyword), nvl(serviceType), page, pageSize);
+    }
+
+    private String nvl(String s) {
+        return s != null ? s : "";
     }
 
     private String toJson(Object obj) {
