@@ -11,7 +11,7 @@ const {
   SmileOutlined,
   UserAddOutlined,
 } = Icons;
-import { Avatar, Badge, Dropdown, Input, Modal, List, Button, Spin, message, Tabs } from 'antd';
+import { Avatar, Badge, Dropdown, Input, Modal, List, Button, Popover, Spin, message, Tabs } from 'antd';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   getMyFriends,
@@ -42,6 +42,40 @@ type ChatMessage = {
   createTime?: string;
   status?: 'sending' | 'sent' | 'failed';
 };
+
+const EMOJI_LIST = [
+  '😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊',
+  '😋','😎','😍','😘','🥰','😗','😙','😚','🙂','🤗',
+  '🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥',
+  '😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜',
+  '😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','🙁',
+  '😖','😞','😟','😤','😢','😭','😦','😧','😨','😩',
+  '🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','🥴',
+  '😠','😡','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇',
+  '👍','👎','👏','🙏','🤝','💪','🫶','👌','✌️','🤞',
+  '👋','🙌','👐','🤲','✋','🖐️','🖖','🤘','🤟','👈',
+  '👉','👆','👇','☝️','💋','💯','💢','💥','💫','💦',
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔',
+  '🎉','🎊','🎁','🎂','🍰','🍕','🍔','🍟','🍜','🍣',
+  '☕','🍺','🍻','🥂','🍷','🥃','⚽','🏀','🎮','🎧',
+];
+
+const EMOJI_CONTENT = (
+  <div className={styles.emojiPanel}>
+    {EMOJI_LIST.map((e, i) => (
+      <span
+        key={`${e}-${i}`}
+        className={styles.emojiItem}
+        onClick={() => {
+          const ev = new CustomEvent('emoji-pick', { detail: e });
+          window.dispatchEvent(ev);
+        }}
+      >
+        {e}
+      </span>
+    ))}
+  </div>
+);
 
 const FriendItem: React.FC<{
   friend: FriendVO;
@@ -107,6 +141,15 @@ const MessagesPage: React.FC = () => {
   useEffect(() => {
     selectedSessionRef.current = selectedSession;
   }, [selectedSession]);
+
+  useEffect(() => {
+    const onPick = (e: Event) => {
+      const ce = e as CustomEvent<string>;
+      setInputMessage((prev) => prev + (ce.detail || ''));
+    };
+    window.addEventListener('emoji-pick', onPick as EventListener);
+    return () => window.removeEventListener('emoji-pick', onPick as EventListener);
+  }, []);
 
   useEffect(() => {
     chatManager.connect();
@@ -672,9 +715,16 @@ const MessagesPage: React.FC = () => {
 
             <div className={styles.chatInputArea}>
               <div className={styles.inputToolbar}>
+                <Popover
+                  content={EMOJI_CONTENT}
+                  trigger="click"
+                  placement="topLeft"
+                  overlayClassName={styles.emojiPopover}
+                >
+                  <SmileOutlined className={styles.toolbarBtn} />
+                </Popover>
                 <CameraOutlined className={styles.toolbarBtn} />
                 <GiftOutlined className={styles.toolbarBtn} />
-                <SmileOutlined className={styles.toolbarBtn} />
                 <DownSquareOutlined className={styles.toolbarBtn} />
               </div>
               <div className={styles.inputMain}>

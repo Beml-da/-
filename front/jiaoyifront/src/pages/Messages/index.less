@@ -538,6 +538,40 @@
   padding: 40px 0;
 }
 
+/* ===== 表情面板 ===== */
+.emojiPanel {
+  width: 320px;
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  padding: 4px;
+}
+
+.emojiItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.emojiItem:hover {
+  background: #f0f0f0;
+  transform: scale(1.15);
+}
+
+.emojiPopover :global(.ant-popover-inner-content) {
+  padding: 6px;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 1100px) {
   .sidebar {
