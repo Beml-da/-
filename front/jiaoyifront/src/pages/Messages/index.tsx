@@ -2,17 +2,16 @@ import * as Icons from '@ant-design/icons';
 const {
   CameraOutlined,
   CloseOutlined,
+  DeleteOutlined,
   DownSquareOutlined,
   GiftOutlined,
   MessageOutlined,
   MoreOutlined,
-  SearchOutlined,
   SendOutlined,
   SmileOutlined,
   UserAddOutlined,
 } = Icons;
 import { Avatar, Badge, Dropdown, Input, Modal, List, Button, Spin, message, Tabs } from 'antd';
-import type { MenuProps } from 'antd';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   getMyFriends,
@@ -21,10 +20,11 @@ import {
   getPendingRequests,
   acceptFriendRequest,
   rejectFriendRequest,
+  deleteFriend,
   FriendVO,
   FriendRequestVO,
 } from '@/services/friend';
-import { getChatHistory, getChatSessions, markChatRead, getUnreadCount, ChatMessageVO, ChatSessionVO } from '@/services/chat';
+import { getChatHistory, markChatRead, ChatMessageVO } from '@/services/chat';
 import { chatManager } from '@/utils/chatManager';
 import { getUserInfo } from '@/utils/useUser';
 import styles from './index.less';
@@ -32,9 +32,6 @@ import styles from './index.less';
 type Session = {
   id: number;
   user: { id: number; name: string; avatar?: string; online: boolean };
-  lastMessage: string;
-  time: string;
-  unread: number;
 };
 
 type ChatMessage = {
@@ -42,13 +39,43 @@ type ChatMessage = {
   fromId: number | 'me';
   content: string;
   time: string;
+  createTime?: string;
+  status?: 'sending' | 'sent' | 'failed';
+};
+
+const FriendItem: React.FC<{
+  friend: FriendVO;
+  active: boolean;
+  onStartChat: (friend: FriendVO) => void;
+  onClickItem: (friend: FriendVO) => void;
+  defaultAvatar: (seed: number) => string;
+}> = ({ friend, active, onStartChat, onClickItem, defaultAvatar }) => {
+  return (
+    <div
+      className={`${styles.friendItem} ${active ? styles.friendItemActive : ''}`}
+      onClick={() => onClickItem(friend)}
+    >
+      <Badge dot={friend.online} status="success" offset={[-2, 30]}>
+        <Avatar src={friend.avatar || defaultAvatar(friend.id)} size={36} />
+      </Badge>
+      <span className={styles.friendName}>{friend.nickname}</span>
+      <div
+        className={styles.friendChatBtn}
+        onClick={(e) => {
+          e.stopPropagation();
+          onStartChat(friend);
+        }}
+      >
+        <MessageOutlined />
+      </div>
+    </div>
+  );
 };
 
 const MessagesPage: React.FC = () => {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [activeNavTab, setActiveNavTab] = useState<'message' | 'notice'>('message');
   const [friends, setFriends] = useState<FriendVO[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [addFriendModalOpen, setAddFriendModalOpen] = useState(false);
@@ -85,22 +112,61 @@ const MessagesPage: React.FC = () => {
     chatManager.connect();
     loadFriends();
     loadPendingRequests();
-    loadSessions();
 
     const unsub = chatManager.subscribe((msg) => {
       if (msg.type === 'chat' && msg.data) {
         const incoming: ChatMessageVO = msg.data;
         const session = selectedSessionRef.current;
-        if (session && incoming.fromId === session.user.id) {
-          const localMsg: ChatMessage = {
-            id: incoming.id,
-            fromId: incoming.fromId,
-            content: incoming.content,
-            time: formatTime(incoming.createTime),
-          };
-          setMessages((prev) => [...prev, localMsg]);
+        if (!session) return;
+        const isCurrentSession =
+          (incoming.fromId === session.user.id) || (incoming.toId === session.user.id);
+        if (!isCurrentSession) return;
+
+        const me = currentUserId.current;
+        if (incoming.fromId === me) {
+          // 自己发出去的消息回执（sent 或 failed）
+          if (incoming.status === 'failed') {
+            setMessages((prev) => [
+              ...prev.filter((m) => !(m.fromId === 'me' && m.content === incoming.content && m.status === 'sending')),
+              {
+                id: incoming.id,
+                fromId: 'me',
+                content: incoming.content,
+                time: formatTime(incoming.createTime),
+                createTime: incoming.createTime,
+                status: 'failed',
+              },
+            ]);
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.fromId === 'me' && m.content === incoming.content && m.status === 'sending'
+                  ? { ...m, id: incoming.id, status: 'sent' }
+                  : m
+              )
+            );
+          }
+        } else {
+          // 对方发来的消息
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: incoming.id,
+              fromId: incoming.fromId,
+              content: incoming.content,
+              time: formatTime(incoming.createTime),
+              createTime: incoming.createTime,
+              status: 'sent',
+            },
+          ]);
         }
-        loadSessions();
+      } else if (msg.type === 'friend-removed' && msg.data) {
+        const removedBy = msg.data.removedBy as number;
+        const session = selectedSessionRef.current;
+        if (session && session.user.id === removedBy) {
+          message.warning(`${session.user.name} 已将你删除为好友`);
+        }
+        loadFriends();
       }
     });
 
@@ -115,6 +181,13 @@ const MessagesPage: React.FC = () => {
     return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatFullTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const d = new Date(timeStr);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
   const loadFriends = async () => {
     setFriendsLoading(true);
     try {
@@ -127,23 +200,6 @@ const MessagesPage: React.FC = () => {
     } finally {
       setFriendsLoading(false);
     }
-  };
-
-  const loadSessions = async () => {
-    try {
-      const res: any = await getChatSessions();
-      if (res.code === 200) {
-        const sessions: ChatSessionVO[] = res.data || [];
-        setFriends(
-          sessions.map((s) => ({
-            id: s.targetUserId,
-            nickname: s.targetNickname,
-            avatar: s.targetAvatar,
-            online: s.targetOnline === 1,
-          })) as any
-        );
-      }
-    } catch {}
   };
 
   const loadPendingRequests = async () => {
@@ -161,13 +217,6 @@ const MessagesPage: React.FC = () => {
     }
   };
 
-  const handleSelectSession = (session: Session) => {
-    setSelectedSession(session);
-    setMessages([]);
-    loadHistory(session.user.id);
-    markChatRead(session.user.id);
-  };
-
   const loadHistory = async (targetUserId: number) => {
     try {
       const res: any = await getChatHistory(targetUserId);
@@ -181,6 +230,8 @@ const MessagesPage: React.FC = () => {
             fromId: m.fromId === uid ? 'me' : m.fromId,
             content: m.content,
             time: formatTime(m.createTime),
+            createTime: m.createTime,
+            status: m.fromId === uid ? 'sent' : undefined,
           }))
         );
       }
@@ -193,11 +244,14 @@ const MessagesPage: React.FC = () => {
     const toId = selectedSession.user.id;
     console.log('[Messages] 发送消息 toId:', toId, 'content:', content);
     // 乐观更新
+    const now = new Date().toISOString();
     const optimisticMsg: ChatMessage = {
       id: Date.now(),
       fromId: 'me',
       content,
-      time: formatTime(new Date().toISOString()),
+      time: formatTime(now),
+      createTime: now,
+      status: 'sending',
     };
     setMessages((prev) => [...prev, optimisticMsg]);
     setInputMessage('');
@@ -250,6 +304,7 @@ const MessagesPage: React.FC = () => {
       if (res.code === 200) {
         setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
         setPendingCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new Event('friend-requests-updated'));
         message.success('已同意好友请求');
         loadFriends();
       } else {
@@ -269,6 +324,7 @@ const MessagesPage: React.FC = () => {
       if (res.code === 200) {
         setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
         setPendingCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new Event('friend-requests-updated'));
         message.success('已拒绝好友请求');
       } else {
         message.error(res.message || '操作失败');
@@ -284,19 +340,40 @@ const MessagesPage: React.FC = () => {
     const session: Session = {
       id: friend.id,
       user: { id: friend.id, name: friend.nickname, avatar: friend.avatar, online: friend.online },
-      lastMessage: '',
-      time: '刚刚',
-      unread: 0,
     };
     setSelectedSession(session);
-    setActiveNavTab('message');
+    setMessages([]);
+    loadHistory(friend.id);
+    markChatRead(friend.id);
   };
 
-  const sessionMoreItems: MenuProps['items'] = [
-    { key: 'top', label: '置顶' },
-    { key: 'mute', label: '免打扰' },
-    { key: 'delete', label: '删除会话', danger: true },
-  ];
+  const handleDeleteFriend = (target: FriendVO | Session['user']) => {
+    const name = (target as FriendVO).nickname || (target as Session['user']).name;
+    Modal.confirm({
+      title: '删除好友',
+      content: `确定要删除好友 "${name}" 吗？删除后将无法继续给对方发送消息。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const res: any = await deleteFriend(target.id);
+          if (res.code === 200) {
+            message.success('已删除好友');
+            setFriends((prev) => prev.filter((f) => f.id !== target.id));
+            if (selectedSession?.user.id === target.id) {
+              setSelectedSession(null);
+              setMessages([]);
+            }
+          } else {
+            message.error(res.message || '删除失败');
+          }
+        } catch {
+          message.error('删除失败');
+        }
+      },
+    });
+  };
 
   const defaultAvatar = (seed: number) =>
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
@@ -481,23 +558,6 @@ const MessagesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className={styles.navList}>
-          <div
-            className={`${styles.navItem} ${activeNavTab === 'message' ? styles.navItemActive : ''}`}
-            onClick={() => setActiveNavTab('message')}
-          >
-            <MessageOutlined className={styles.navIcon} />
-            <span className={styles.navText}>消息</span>
-          </div>
-          <div
-            className={`${styles.navItem} ${activeNavTab === 'notice' ? styles.navItemActive : ''}`}
-            onClick={() => setActiveNavTab('notice')}
-          >
-            <GiftOutlined className={styles.navIcon} />
-            <span className={styles.navText}>通知</span>
-          </div>
-        </div>
-
         <div className={styles.friendListSection}>
           <div className={styles.friendListTitle}>
             <span>好友列表</span>
@@ -509,89 +569,18 @@ const MessagesPage: React.FC = () => {
                 <div className={styles.modalEmpty}>暂无好友，去添加一个吧</div>
               ) : (
                 friends.map((friend) => (
-                  <div
+                  <FriendItem
                     key={friend.id}
-                    className={`${styles.friendItem} ${selectedSession?.user.id === friend.id ? styles.friendItemActive : ''}`}
-                    onClick={() => handleStartChat(friend)}
-                  >
-                    <Badge dot={friend.online} status="success" offset={[-2, 30]}>
-                      <Avatar src={friend.avatar || defaultAvatar(friend.id)} size={36} />
-                    </Badge>
-                    <span className={styles.friendName}>{friend.nickname}</span>
-                    <div
-                      className={styles.friendChatBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartChat(friend);
-                      }}
-                    >
-                      <MessageOutlined />
-                    </div>
-                  </div>
+                    friend={friend}
+                    active={selectedSession?.user.id === friend.id}
+                    onStartChat={handleStartChat}
+                    onClickItem={handleStartChat}
+                    defaultAvatar={defaultAvatar}
+                  />
                 ))
               )}
             </div>
           </Spin>
-        </div>
-      </div>
-
-      {/* ===== 中间消息列表 ===== */}
-      <div className={styles.middlePanel}>
-        <div className={styles.middleHeader}>
-          <span className={styles.middleTitle}>
-            {activeNavTab === 'message' ? '消息' : '通知'}
-          </span>
-        </div>
-
-        <div className={styles.tabSection}>
-          <Input
-            placeholder="搜索聊天记录..."
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            className={styles.chatSearchInput}
-          />
-        </div>
-
-        <div className={styles.sessionList}>
-          {friends.length === 0 ? (
-            <div className={styles.modalEmpty} style={{ padding: '40px 0' }}>
-              还没有聊天记录
-            </div>
-          ) : (
-            friends.map((friend) => (
-              <div
-                key={friend.id}
-                className={`${styles.sessionItem} ${selectedSession?.id === friend.id ? styles.sessionActive : ''}`}
-                onClick={() =>
-                  handleSelectSession({
-                    id: friend.id,
-                    user: { id: friend.id, name: friend.nickname, avatar: friend.avatar, online: friend.online },
-                    lastMessage: '',
-                    time: '',
-                    unread: 0,
-                  })
-                }
-              >
-                <div className={styles.sessionAvatarWrap}>
-                  <Badge dot={friend.online} status="success" offset={[-4, 36]}>
-                    <Avatar src={friend.avatar || defaultAvatar(friend.id)} size={48} />
-                  </Badge>
-                </div>
-                <div className={styles.sessionInfo}>
-                  <div className={styles.sessionTop}>
-                    <span className={styles.sessionName}>{friend.nickname}</span>
-                  </div>
-                  <span className={styles.sessionPreview}>
-                    {friend.school || '暂无学校信息'}
-                  </span>
-                </div>
-                <Dropdown menu={{ items: sessionMoreItems }} trigger={['click']} placement="bottomRight">
-                  <div className={styles.sessionMore} onClick={(e) => e.stopPropagation()}>
-                    <MoreOutlined />
-                  </div>
-                </Dropdown>
-              </div>
-            ))
-          )}
         </div>
       </div>
 
@@ -610,7 +599,23 @@ const MessagesPage: React.FC = () => {
                 </span>
               </div>
               <div className={styles.chatHeaderRight}>
-                <MoreOutlined className={styles.chatHeaderIcon} />
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'delete',
+                        label: '删除好友',
+                        icon: <DeleteOutlined />,
+                        danger: true,
+                        onClick: () => handleDeleteFriend(selectedSession.user),
+                      },
+                    ],
+                  }}
+                >
+                  <MoreOutlined className={styles.chatHeaderIcon} />
+                </Dropdown>
                 <CloseOutlined
                   className={styles.chatHeaderIcon}
                   onClick={() => setSelectedSession(null)}
@@ -621,6 +626,7 @@ const MessagesPage: React.FC = () => {
             <div className={styles.chatMessages}>
               {messages.map((msg) => {
                 const isMe = msg.fromId === 'me';
+                const isFailed = msg.status === 'failed';
                 return (
                   <div
                     key={msg.id}
@@ -633,10 +639,25 @@ const MessagesPage: React.FC = () => {
                         className={styles.chatMsgAvatar}
                       />
                     )}
-                    <div className={`${styles.chatBubble} ${isMe ? styles.chatBubbleMe : styles.chatBubbleOther}`}>
+                    {isMe && (
+                      <div className={styles.chatMsgTime}>
+                        {formatFullTime(msg.createTime)}
+                      </div>
+                    )}
+                    {isMe && isFailed && (
+                      <span className={styles.chatMsgError} title="消息发送失败，对方已不是你的好友">
+                        <CloseOutlined />
+                      </span>
+                    )}
+                    <div className={`${styles.chatBubble} ${isMe ? styles.chatBubbleMe : styles.chatBubbleOther} ${isFailed ? styles.chatBubbleFailed : ''}`}>
                       {msg.content}
                     </div>
-                    {isMe && (
+                    {!isMe && (
+                      <div className={styles.chatMsgTime}>
+                        {formatFullTime(msg.createTime)}
+                      </div>
+                    )}
+                    {isMe && !isFailed && (
                       <Avatar
                         src={currentUserAvatar}
                         size={36}

@@ -22,11 +22,18 @@
     <insert id="insert">
         INSERT INTO friend_relation (user_id, friend_id, deleted, create_time)
         VALUES (#{userId}, #{friendId}, 0, NOW())
+        ON DUPLICATE KEY UPDATE deleted = 0, create_time = NOW()
     </insert>
 
     <update id="delete">
         UPDATE friend_relation
         SET deleted = 1
+        WHERE user_id = #{userId} AND friend_id = #{friendId}
+    </update>
+
+    <update id="restore">
+        UPDATE friend_relation
+        SET deleted = 0, create_time = NOW()
         WHERE user_id = #{userId} AND friend_id = #{friendId}
     </update>
 
@@ -45,6 +52,7 @@
         SELECT * FROM friend_relation
         WHERE ((user_id = #{userId} AND friend_id = #{friendId}) OR (user_id = #{friendId} AND friend_id = #{userId}))
           AND deleted = 0
+        LIMIT 1
     </select>
 
 </mapper>

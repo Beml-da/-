@@ -85,6 +85,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     handleChatMessage(fromId, data);
                     break;
                 case "ping":
+                    chatWebSocketUtils.refreshOnline(fromId);
                     try {
                         session.sendMessage(new TextMessage("{\"type\":\"pong\"}"));
                     } catch (IOException e) {

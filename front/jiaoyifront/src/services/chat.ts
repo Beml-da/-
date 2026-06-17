@@ -14,6 +14,8 @@ export interface ChatMessageVO {
   createTime: string;
   fromNickname?: string;
   fromAvatar?: string;
+  // 消息状态：sending 发送中 / sent 已送达 / failed 发送失败（被对方删除好友）
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 export interface ChatSessionVO {

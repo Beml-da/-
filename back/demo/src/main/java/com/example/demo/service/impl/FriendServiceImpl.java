@@ -20,7 +20,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
 
@@ -106,12 +108,21 @@ public class FriendServiceImpl implements FriendService {
 
         friendRequestMapper.updateStatus(requestId, 1);
 
-        friendRelationMapper.insert(new FriendRelation(currentUserId, request.getFromUserId()));
-        friendRelationMapper.insert(new FriendRelation(request.getFromUserId(), currentUserId));
+        upsertFriendRelation(currentUserId, request.getFromUserId());
+        upsertFriendRelation(request.getFromUserId(), currentUserId);
 
         evictPendingCache(currentUserId);
         evictFriendListCache(currentUserId);
         evictFriendListCache(request.getFromUserId());
+    }
+
+    private void upsertFriendRelation(Long userId, Long friendId) {
+        FriendRelation existing = friendRelationMapper.findRelation(userId, friendId);
+        if (existing != null) {
+            friendRelationMapper.restore(userId, friendId);
+        } else {
+            friendRelationMapper.insert(new FriendRelation(userId, friendId));
+        }
     }
 
     @Override
@@ -140,23 +151,27 @@ public class FriendServiceImpl implements FriendService {
         Long currentUserId = getCurrentUserIdFromContext();
         String key = "friend:list:" + currentUserId;
 
+        List<FriendVO> friends = null;
         try {
             String cached = redisTemplate.opsForValue().get(key);
             if (cached != null) {
-                List<FriendVO> friends = objectMapper.readValue(cached, new TypeReference<List<FriendVO>>() {});
-                for (FriendVO friend : friends) {
-                    friend.setOnline(chatWebSocketUtils.isUserOnline(friend.getId()));
-                }
-                return friends;
+                friends = objectMapper.readValue(cached, new TypeReference<List<FriendVO>>() {});
             }
         } catch (Exception e) {
             log.error("Redis GET 失败, key={}", key, e);
         }
 
-        List<User> userFriends = friendRelationMapper.findFriendsByUserId(currentUserId);
-        List<FriendVO> friends = userFriends.stream()
-                .map(user -> new FriendVO(user, chatWebSocketUtils.isUserOnline(user.getId())))
-                .collect(Collectors.toList());
+        if (friends == null) {
+            List<User> userFriends = friendRelationMapper.findFriendsByUserId(currentUserId);
+            friends = userFriends.stream()
+                    .map(user -> new FriendVO(user, chatWebSocketUtils.isUserOnline(user.getId())))
+                    .collect(Collectors.toList());
+        } else {
+            // 缓存命中：仅刷新 online 字段（不要直接 return，务必把最新结果写回缓存）
+            for (FriendVO friend : friends) {
+                friend.setOnline(chatWebSocketUtils.isUserOnline(friend.getId()));
+            }
+        }
 
         try {
             redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(friends), FRIEND_LIST_TTL, TimeUnit.MINUTES);
@@ -176,6 +191,19 @@ public class FriendServiceImpl implements FriendService {
 
         evictFriendListCache(currentUserId);
         evictFriendListCache(friendId);
+
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "friend-removed");
+            data.put("data", java.util.Collections.singletonMap("removedBy", currentUserId));
+            String json = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                    .writeValueAsString(data);
+            if (chatWebSocketUtils.isUserOnline(friendId)) {
+                chatWebSocketUtils.sendMessageToOnlineUser(friendId, json);
+            }
+        } catch (Exception e) {
+            System.out.println("[FriendService] 推送 friend-removed 失败: " + e.getMessage());
+        }
     }
 
     @Override

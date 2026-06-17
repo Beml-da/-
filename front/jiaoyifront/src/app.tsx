@@ -128,7 +128,16 @@ const FloatingBall: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
     };
     load();
     const timer = setInterval(load, 10000);
-    return () => clearInterval(timer);
+
+    const handleRequestsUpdated = () => {
+      load();
+    };
+    window.addEventListener('friend-requests-updated', handleRequestsUpdated);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('friend-requests-updated', handleRequestsUpdated);
+    };
   }, []);
 
   useEffect(() => {

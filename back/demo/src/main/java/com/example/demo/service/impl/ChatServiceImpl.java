@@ -35,17 +35,20 @@ public class ChatServiceImpl implements ChatService {
     private final ChatWebSocketUtils chatWebSocketUtils;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final com.example.demo.mapper.FriendRelationMapper friendRelationMapper;
 
     public ChatServiceImpl(ChatMessageMapper messageMapper,
                            ChatSessionMapper sessionMapper,
                            ChatWebSocketUtils chatWebSocketUtils,
-                           StringRedisTemplate redisTemplate) {
+                           StringRedisTemplate redisTemplate,
+                           com.example.demo.mapper.FriendRelationMapper friendRelationMapper) {
         this.messageMapper = messageMapper;
         this.sessionMapper = sessionMapper;
         this.chatWebSocketUtils = chatWebSocketUtils;
         this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
+        this.friendRelationMapper = friendRelationMapper;
     }
 
     @Override
@@ -95,6 +98,12 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void sendAndNotify(Long fromId, Long toId, String content) {
+        if (friendRelationMapper.findRelationEither(fromId, toId) == null) {
+            System.out.println("[ChatService] 双方已不是好友，拒绝发送 fromId=" + fromId + " toId=" + toId);
+            pushSendFailure(fromId, toId, content);
+            return;
+        }
+
         Map<String, Object> saved = saveMessage(fromId, toId, content, null);
 
         ChatMessageVO msgVO = messageMapper.findById((Long) saved.get("id"));
@@ -102,6 +111,7 @@ public class ChatServiceImpl implements ChatService {
             System.out.println("[ChatService] 消息保存失败，msgVO为null");
             return;
         }
+        msgVO.setStatus("sent");
 
         try {
             Map<String, Object> wsData = new HashMap<>();
@@ -121,6 +131,29 @@ public class ChatServiceImpl implements ChatService {
             }
 
             if (Boolean.TRUE.equals(fromOnline)) {
+                chatWebSocketUtils.sendMessageToOnlineUser(fromId, json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void pushSendFailure(Long fromId, Long toId, String content) {
+        try {
+            ChatMessageVO failVO = new ChatMessageVO();
+            failVO.setId(-System.currentTimeMillis());
+            failVO.setFromId(fromId);
+            failVO.setToId(toId);
+            failVO.setContent(content);
+            failVO.setStatus("failed");
+            failVO.setCreateTime(java.time.LocalDateTime.now());
+
+            Map<String, Object> wsData = new HashMap<>();
+            wsData.put("type", "chat");
+            wsData.put("data", failVO);
+            String json = objectMapper.writeValueAsString(wsData);
+
+            if (Boolean.TRUE.equals(chatWebSocketUtils.isUserOnline(fromId))) {
                 chatWebSocketUtils.sendMessageToOnlineUser(fromId, json);
             }
         } catch (Exception e) {

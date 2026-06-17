@@ -9,7 +9,7 @@
 
 /* ===== 左侧边栏 ===== */
 .sidebar {
-  width: 200px;
+  width: 280px;
   flex-shrink: 0;
   height: 100%;
   background: #fbfbfb;
@@ -143,10 +143,12 @@
   align-items: center;
   padding: 8px 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform 0.18s ease, background 0.2s;
   margin: 0 8px;
   border-radius: 6px;
   gap: 10px;
+  background: #fbfbfb;
+  will-change: transform;
 }
 
 .friendItem:hover {
@@ -186,184 +188,7 @@
   background: #e6f4ff;
 }
 
-/* ===== 中间消息列表 ===== */
-.middlePanel {
-  width: 320px;
-  flex-shrink: 0;
-  height: 100%;
-  background: #ffffff;
-  border-right: 1px solid #e6e6e6;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* 中间面板头部 */
-.middleHeader {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  border-bottom: 1px solid #e6e6e6;
-  flex-shrink: 0;
-  background: #ffffff;
-}
-
-.middleTitle {
-  font-size: 18px;
-  font-weight: bold;
-  color: #262626;
-}
-
-/* 标签区 */
-.tabSection {
-  display: flex;
-  padding: 12px 16px;
-  gap: 8px;
-  flex-shrink: 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.tabItem {
-  height: 28px;
-  padding: 0 12px;
-  line-height: 28px;
-  text-align: center;
-  font-size: 13px;
-  color: #595959;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
-}
-
-.tabItem:hover {
-  color: #1890ff;
-  background: #e6f4ff;
-}
-
-.tabActive {
-  background: #1890ff !important;
-  color: #ffffff !important;
-  font-weight: 500;
-  border-color: #1890ff !important;
-}
-
-.chatSearchInput {
-  border-radius: 6px;
-  background: #f5f5f5;
-  border-color: transparent;
-  font-size: 13px;
-}
-
-.chatSearchInput:hover,
-.chatSearchInput:focus {
-  background: #f0f0f0;
-  border-color: #1890ff;
-  box-shadow: none;
-}
-
-/* 会话列表 */
-.sessionList {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sessionItem {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-  border-bottom: 1px solid #fafafa;
-}
-
-.sessionItem:hover {
-  background: #fafafa;
-}
-
-.sessionActive {
-  background: #e6f4ff !important;
-}
-
-.sessionAvatarWrap {
-  position: relative;
-  flex-shrink: 0;
-  margin-right: 12px;
-}
-
-.sessionAvatarWrap :global(.ant-badge) {
-  display: block;
-}
-
-.unreadBadge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: #ff4d4f;
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
-  font-weight: 600;
-  z-index: 1;
-}
-
-.sessionInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.sessionTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.sessionName {
-  font-size: 14px;
-  font-weight: 500;
-  color: #262626;
-  flex-shrink: 0;
-}
-
-.sessionTime {
-  font-size: 12px;
-  color: #bfbfbf;
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.sessionPreview {
-  font-size: 12px;
-  color: #8c8c8c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sessionMore {
-  font-size: 14px;
-  color: #d9d9d9;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s;
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.sessionMore:hover {
-  color: #595959;
-}
+/* ===== 滑动删除 ===== */
 
 /* ===== 右侧聊天窗口 ===== */
 .chatPanel {
@@ -466,6 +291,35 @@
   margin: 0 8px;
 }
 
+/* 时间 - 默认隐藏，hover 整条消息时显示在气泡旁边 */
+.chatMsgTime {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
+  user-select: none;
+  white-space: nowrap;
+  margin: 0 8px;
+  align-self: flex-end;
+  padding-bottom: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+/* 我方时间在气泡左侧：放到行首 */
+.chatMsgTimeMe {
+  order: -1;
+}
+
+/* 对方时间在气泡右侧：保持默认 order（位于气泡之后） */
+.chatMsgTimeOther {
+  order: 0;
+}
+
+.chatMsg:hover .chatMsgTime {
+  opacity: 1;
+}
+
 .chatBubble {
   padding: 10px 14px;
   border-radius: 8px;
@@ -473,6 +327,7 @@
   line-height: 1.5;
   word-break: break-all;
   max-width: 100%;
+  cursor: default;
 }
 
 .chatBubbleMe {
@@ -486,6 +341,28 @@
   color: #262626;
   border-bottom-left-radius: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.chatBubbleFailed {
+  background: #fff1f0 !important;
+  color: #ff4d4f !important;
+  border: 1px solid #ffccc7;
+}
+
+.chatMsgError {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 12px;
+  margin-right: 6px;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin-bottom: 2px;
 }
 
 /* 输入区域 */
@@ -664,11 +541,7 @@
 /* ===== 响应式 ===== */
 @media (max-width: 1100px) {
   .sidebar {
-    width: 180px;
-  }
-
-  .middlePanel {
-    width: 280px;
+    width: 240px;
   }
 }
 
@@ -678,7 +551,6 @@
   }
 
   .sidebar,
-  .middlePanel,
   .chatPanel {
     width: 100%;
     height: auto;

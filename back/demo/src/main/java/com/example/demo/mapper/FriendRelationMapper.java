@@ -14,6 +14,8 @@ public interface FriendRelationMapper {
 
     int delete(@Param("userId") Long userId, @Param("friendId") Long friendId);
 
+    int restore(@Param("userId") Long userId, @Param("friendId") Long friendId);
+
     List<User> findFriendsByUserId(@Param("userId") Long userId);
 
     FriendRelation findRelation(@Param("userId") Long userId, @Param("friendId") Long friendId);
