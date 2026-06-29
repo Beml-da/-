@@ -10,6 +10,7 @@ import {
   CameraOutlined,
   LaptopOutlined,
   PlusOutlined,
+  RobotOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
@@ -44,6 +45,7 @@ const PublishPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [serviceTags, setServiceTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const handleImageChange = ({ fileList }: any) => {
     const urls = fileList
@@ -85,6 +87,43 @@ const PublishPage: React.FC = () => {
 
   const handleRemoveTag = (tag: string) => {
     setServiceTags(serviceTags.filter((t) => t !== tag));
+  };
+
+  // AI 一键生成商品描述
+  const handleAIGenerate = async () => {
+    const title = form.getFieldValue('title');
+    const category = selectedCategory;
+    if (!title || !title.trim()) {
+      message.warning('请先填写商品名称');
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const res = await fetch('/api/ai/generate-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ title, category }),
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        form.setFieldsValue({ description: data.data.description });
+        if (data.data.priceSuggestion) {
+          message.success(`AI 文案已生成 · ${data.data.priceSuggestion}`);
+        } else {
+          message.success('AI 文案已生成，可继续编辑～');
+        }
+      } else {
+        message.error(data.message || '生成失败，请重试');
+      }
+    } catch {
+      message.error('生成失败，请检查网络');
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   const handleSubmitProduct = async () => {
@@ -277,6 +316,16 @@ const PublishPage: React.FC = () => {
                 showCount
               />
             </Form.Item>
+
+            <div style={{ marginTop: -16, marginBottom: 16, textAlign: 'right' }}>
+              <Button
+                icon={<RobotOutlined />}
+                loading={aiGenerating}
+                onClick={handleAIGenerate}
+              >
+                {aiGenerating ? 'AI 生成中...' : 'AI 一键生成商品描述'}
+              </Button>
+            </div>
 
             <div className={styles.formRow}>
               <Form.Item

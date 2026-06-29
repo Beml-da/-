@@ -142,7 +142,7 @@ export interface Product {
   sellerId: number;
   seller?: User;
   location?: string;
-  isNegotiable?: boolean;
+  isNegotiable?: number;
   tags?: string[];
   isFavorited?: boolean;
   createTime?: string;
