@@ -116,6 +116,28 @@ class ChatManager {
     }
   }
 
+  /**
+   * 向 AI 客服发送问题。
+   * 通过 type=ai-chat 消息协议复用同一个 WebSocket 通道。
+   */
+  sendAiMessage(content: string) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log('[Chat WS] 发送 AI 消息:', content);
+      this.ws.send(JSON.stringify({ type: 'ai-chat', content }));
+    } else {
+      console.log('[Chat WS] ❌ AI 消息发送失败，ws未连接');
+    }
+  }
+
+  /**
+   * 清除 AI 客服上下文。
+   */
+  sendAiReset() {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'ai-reset' }));
+    }
+  }
+
   subscribe(handler: MessageHandler) {
     this.subscribers.push(handler);
     return () => {

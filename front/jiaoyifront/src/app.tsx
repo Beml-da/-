@@ -1,9 +1,10 @@
 // 运行时配置
 import { RunTimeLayoutConfig } from '@umijs/max';
-import { Avatar, Badge, Dropdown, message, Space, Typography } from 'antd';
+import { Avatar, Badge, Button, Dropdown, message, Space, Typography } from 'antd';
 import {
   BellOutlined,
   LogoutOutlined,
+  RobotOutlined,
   SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -14,6 +15,7 @@ import { getPendingRequestCount } from './services/friend';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { chatManager } from './utils/chatManager';
+import { AiCustomerService } from './utils/AiCustomerService';
 
 const { Text } = Typography;
 
@@ -273,6 +275,64 @@ const FloatingBall: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
   return createPortal(ball, portalRef.current);
 };
 
+// AI 客服悬浮按钮 + 弹窗
+const AiCustomerLauncher: React.FC = () => {
+  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const portalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    portalRef.current = document.createElement('div');
+    document.body.appendChild(portalRef.current);
+    setMounted(true);
+    return () => {
+      if (portalRef.current) {
+        document.body.removeChild(portalRef.current);
+      }
+    };
+  }, []);
+
+  if (!mounted || !portalRef.current) return null;
+
+  return createPortal(
+    <>
+      <div
+        onClick={() => setVisible((v) => !v)}
+        title="AI 智能客服"
+        style={{
+          position: 'fixed',
+          right: 24,
+          // 蓝色消息铃铛占 bottom: 80 + 56px 高度，避免重叠放到 152
+          bottom: 152,
+          width: 52,
+          height: 52,
+          background: visible
+            ? 'linear-gradient(135deg, #52c41a, #389e0d)'
+            : 'linear-gradient(135deg, #722ed1, #531dab)',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(114, 46, 209, 0.4)',
+          zIndex: 9999,
+          transition: 'all 0.25s',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.08)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+        }}
+      >
+        <RobotOutlined style={{ fontSize: 22, color: '#fff' }} />
+      </div>
+      <AiCustomerService visible={visible} onClose={() => setVisible(false)} />
+    </>,
+    portalRef.current,
+  );
+};
+
 export async function getInitialState(): Promise<{
   name: string;
   currentUser?: any;
@@ -303,6 +363,7 @@ export const layout: RunTimeLayoutConfig = (props) => {
     layout: 'top',
     rightContentRender: () => (
       <>
+        <AiCustomerLauncher />
         <FloatingBall pendingCount={props.initialState?.pendingCount ?? 0} />
         <CustomAvatar />
       </>
