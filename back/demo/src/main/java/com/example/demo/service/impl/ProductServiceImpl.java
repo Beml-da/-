@@ -425,6 +425,14 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
+    @Override
+    public void evictAllCaches() {
+        evictHotCache();
+        evictNewestCache();
+        evictListCache();
+        evictSearchCache();
+    }
+
     private String toJson(Object obj) {
         if (obj == null) return null;
         if (obj instanceof String) return (String) obj;

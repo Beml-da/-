@@ -14,12 +14,23 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
+
+    /**
+     * 标记 session 已经因为编码/状态机错误而不可写，后续分片直接跳过
+     */
+    private final Set<String> sessionPoisoned = ConcurrentHashMap.newKeySet();
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
@@ -53,25 +64,100 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void deliverOfflineMessages(Long userId) {
         try {
-            List<Object> offlineMsgIds = chatService.getOfflineMessageIds(userId);
-            for (Object msgIdObj : offlineMsgIds) {
-                Long msgId = Long.valueOf(msgIdObj.toString());
-                ChatMessageVO msg = messageMapper.findById(msgId);
-                if (msg != null) {
-                    Map<String, Object> wsData = new HashMap<>();
-                    wsData.put("type", "chat");
-                    wsData.put("data", msg);
-                    String json = objectMapper.writeValueAsString(wsData);
-                    chatWebSocketUtils.sendMessageToOnlineUser(userId, json);
-                    System.out.println("[WS] 离线消息已投递 msgId=" + msgId + " to userId=" + userId);
-                }
+            List<ChatMessageVO> unreadMessages = messageMapper.findUnreadMessages(userId);
+            for (ChatMessageVO msg : unreadMessages) {
+                Map<String, Object> wsData = new HashMap<>();
+                wsData.put("type", "chat");
+                wsData.put("data", msg);
+                String json = objectMapper.writeValueAsString(wsData);
+                chatWebSocketUtils.sendMessageToOnlineUser(userId, json);
             }
-            if (!offlineMsgIds.isEmpty()) {
-                chatService.clearOfflineMessages(userId);
+            if (!unreadMessages.isEmpty()) {
+                System.out.println("[WS] 离线消息已投递 " + unreadMessages.size() + " 条 to userId=" + userId);
             }
         } catch (Exception e) {
             System.out.println("[WS] 投递离线消息异常: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 串行化发送 WebSocket 文本消息，避免多线程/多次回调对同一 session 并发写
+     * 而触发 Tomcat 的 TEXT_PARTIAL_WRITING 状态机非法错误。
+     *
+     * 同时在发送前用 UTF-8 严格编码校验过滤掉非法字符，避免
+     * "Encoding error [MALFORMED[1]]" 把 partial 状态机打坏。
+     * 一旦检测到不可恢复错误（编码异常或状态机非法），会把 session
+     * 标记为 "poisoned"，后续同一 session 的所有 sendMessage 直接跳过。
+     *
+     * 锁表与 ChatWebSocketUtils 共享，保证全局同一 session 串行化。
+     */
+    /**
+     * 过滤掉无法用 UTF-8 编码的字符（孤立的 surrogate 等），
+     * 避免 Tomcat 在 sendPartialString 时抛 "Encoding error [MALFORMED[1]]"。
+     *
+     * 实现要点：每次调用都新建一个 CharsetEncoder，避免跨调用 / 跨线程的状态污染
+     * （上一版用 ThreadLocal 时 encoder 在抛错后没及时 reset，导致后续 sanitize
+     *  把正常字符串全部误判为非法，最终把所有切片过滤成空字符串）。
+     */
+    private String sanitizeUtf8(String input) {
+        if (input == null || input.isEmpty()) return input;
+        CharsetEncoder enc = StandardCharsets.UTF_8.newEncoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        StringBuilder sb = new StringBuilder(input.length());
+        int i = 0;
+        while (i < input.length()) {
+            int cp = input.codePointAt(i);
+            int charCount = Character.charCount(cp);
+            // 编码单个码点前显式 reset，避免上一次失败残留 ERROR 状态
+            enc.reset();
+            try {
+                enc.encode(java.nio.CharBuffer.wrap(input, i, i + charCount));
+                sb.append(input, i, i + charCount);
+            } catch (CharacterCodingException ex) {
+                // 单字符失败：合法 surrogate pair 但配对错、或极罕见 unencodable
+                sb.append('?');
+            }
+            i += charCount;
+        }
+        return sb.toString();
+    }
+
+    private void safeSend(WebSocketSession session, String json) {
+        if (session == null || json == null || json.isEmpty()) return;
+        String sid = session.getId();
+        if (sessionPoisoned.contains(sid)) {
+            return;
+        }
+        // 发送前严格 UTF-8 校验，过滤掉非法字符，避免 MALFORMED 把 partial 状态机打坏。
+        // sanitize 在锁外完成（不持有 WebSocket 锁），且只用局部 encoder，
+        // 与 WebSocket session 的部分写入状态机完全隔离。
+        String safeJson = sanitizeUtf8(json);
+        if (safeJson == null || safeJson.isEmpty()) {
+            return;
+        }
+        Object lock = chatWebSocketUtils.lockFor(session);
+        synchronized (lock) {
+            if (!session.isOpen()) {
+                sessionPoisoned.add(sid);
+                return;
+            }
+            if (sessionPoisoned.contains(sid)) {
+                return;
+            }
+            try {
+                session.sendMessage(new TextMessage(safeJson));
+            } catch (IOException e) {
+                System.out.println("[WS] safeSend 失败 sessionId=" + sid + " err=" + e.getMessage());
+                sessionPoisoned.add(sid);
+            } catch (IllegalStateException e) {
+                System.out.println("[WS] safeSend 状态非法 sessionId=" + sid + " err=" + e.getMessage());
+                sessionPoisoned.add(sid);
+            } catch (IllegalArgumentException e) {
+                System.out.println("[WS] safeSend 编码非法 sessionId=" + sid + " err=" + e.getMessage());
+                sessionPoisoned.add(sid);
+            }
         }
     }
 
@@ -95,20 +181,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     break;
                 case "ai-reset":
                     customerServiceAiService.clearContext(fromId);
-                    try {
-                        session.sendMessage(new TextMessage(
-                                "{\"type\":\"ai-reset\",\"data\":{\"success\":true}}"));
-                    } catch (IOException e) {
-                        // ignore
-                    }
+                    safeSend(session, "{\"type\":\"ai-reset\",\"data\":{\"success\":true}}");
                     break;
                 case "ping":
                     chatWebSocketUtils.refreshOnline(fromId);
-                    try {
-                        session.sendMessage(new TextMessage("{\"type\":\"pong\"}"));
-                    } catch (IOException e) {
-                        System.out.println("[WS] ping回复失败: " + e.getMessage());
-                    }
+                    safeSend(session, "{\"type\":\"pong\"}");
                     break;
             }
         } catch (Exception e) {
@@ -148,7 +225,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             userEcho.put("role", "user");
             userEcho.put("content", content);
             userEcho.put("fromId", fromId);
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(userEcho)));
+            safeSend(session, objectMapper.writeValueAsString(userEcho));
 
             // 2. 调 RAG 服务
             CustomerServiceAiService.CustomerAnswer answer =
@@ -159,6 +236,16 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             int chunkSize = 5;
             StringBuilder sent = new StringBuilder();
             for (int i = 0; i < reply.length(); i += chunkSize) {
+                // 一旦本 session 已经因为编码/状态机错误被标记为 poisoned，后续分片直接跳过
+                if (sessionPoisoned.contains(session.getId())) {
+                    System.out.println("[WS] session 已 poisoned，提前终止流式输出 fromId=" + fromId);
+                    return;
+                }
+                if (!session.isOpen()) {
+                    System.out.println("[WS] session 已关闭，提前终止流式输出 fromId=" + fromId);
+                    return;
+                }
+
                 int end = Math.min(i + chunkSize, reply.length());
                 String piece = reply.substring(i, end);
                 sent.append(piece);
@@ -169,12 +256,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 aiChunk.put("content", piece);
                 aiChunk.put("done", end >= reply.length());
                 aiChunk.put("fromId", 0); // 0 表示 AI
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(aiChunk)));
+                safeSend(session, objectMapper.writeValueAsString(aiChunk));
 
                 try {
                     Thread.sleep(30); // 模拟流式效果
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    return;
                 }
             }
 
@@ -183,13 +271,16 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             System.out.println("[WS] AI 客服处理异常: " + e.getMessage());
             e.printStackTrace();
+            // 出错时不再强行往同一 session 写消息（上一个 send 可能已经把状态机打坏），
+            // 仅尝试一次错误提示，交给 safeSend 兜底。
             try {
                 Map<String, Object> err = new HashMap<>();
                 err.put("type", "ai-chat");
                 err.put("role", "error");
                 err.put("content", "AI 客服暂时无法响应，请稍后再试");
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(err)));
-            } catch (IOException ignored) {}
+                safeSend(session, objectMapper.writeValueAsString(err));
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -201,6 +292,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             chatWebSocketUtils.removeOnlineUser(userId);
             System.out.println("[WS] 在线用户数: " + chatWebSocketUtils.onlineUserCount());
         }
+        String sid = session.getId();
+        // 清理会话级锁和中毒标记，防止长期运行无界增长
+        chatWebSocketUtils.clearLockFor(session);
+        sessionPoisoned.remove(sid);
     }
 
     private Long getUserId(WebSocketSession session) {

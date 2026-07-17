@@ -48,4 +48,16 @@ public interface UserMapper {
      * 更新用户余额
      */
     int updateBalance(@Param("id") Long id, @Param("balance") java.math.BigDecimal balance);
+
+    /**
+     * 原子扣减余额（CAS）：保证不会扣成负数
+     * @return 影响行数；0 表示余额不足或用户不存在
+     */
+    int deductBalance(@Param("id") Long id, @Param("amount") java.math.BigDecimal amount);
+
+    /**
+     * 原子增加余额
+     * @return 影响行数
+     */
+    int addBalance(@Param("id") Long id, @Param("amount") java.math.BigDecimal amount);
 }

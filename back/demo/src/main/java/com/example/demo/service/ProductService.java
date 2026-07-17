@@ -94,4 +94,10 @@ public interface ProductService {
      * 统一搜索总数
      */
     Long countSearchAll(String keyword);
+
+    /**
+     * 清除所有商品相关的缓存（热卖/最新/列表/搜索）
+     * 订单状态变更后调用，确保商品列表页面实时反映最新状态
+     */
+    void evictAllCaches();
 }

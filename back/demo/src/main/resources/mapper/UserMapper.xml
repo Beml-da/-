@@ -120,10 +120,24 @@
         LIMIT 20
     </select>
 
-    <!-- 更新用户余额 -->
+    <!-- 更新用户余额（覆盖写） -->
     <update id="updateBalance">
         UPDATE sys_user
         SET balance = #{balance}, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <!-- 原子扣减余额：CAS 写法，余额不足时影响行数为 0 -->
+    <update id="deductBalance">
+        UPDATE sys_user
+        SET balance = balance - #{amount}, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0 AND balance &gt;= #{amount}
+    </update>
+
+    <!-- 原子增加余额 -->
+    <update id="addBalance">
+        UPDATE sys_user
+        SET balance = balance + #{amount}, update_time = NOW()
         WHERE id = #{id} AND deleted = 0
     </update>
 

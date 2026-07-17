@@ -101,6 +101,9 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  refundStatus?: '退款中' | '已退款' | '已拒绝' | null;
+  refundReason?: string;
+  refundTime?: string;
 }
 
 export type OrderStatus =

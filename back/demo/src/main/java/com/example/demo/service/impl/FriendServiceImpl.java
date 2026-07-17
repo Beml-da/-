@@ -86,6 +86,17 @@ public class FriendServiceImpl implements FriendService {
         friendRequestMapper.insert(request);
 
         evictPendingCache(toUserId);
+
+        // 通过 WebSocket 通知对方有新好友请求
+        if (chatWebSocketUtils.isUserOnline(toUserId)) {
+            try {
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "friend-request-new");
+                chatWebSocketUtils.sendMessageToOnlineUser(toUserId, objectMapper.writeValueAsString(notification));
+            } catch (Exception e) {
+                log.warn("发送好友请求通知失败: {}", e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -256,7 +267,11 @@ public class FriendServiceImpl implements FriendService {
     }
 
     private Long getCurrentUserIdFromContext() {
-        return UserContext.getCurrentUserId();
+        Long userId = UserContext.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("未登录，请重新登录");
+        }
+        return userId;
     }
 
     private User getUserProfile(Long userId) {

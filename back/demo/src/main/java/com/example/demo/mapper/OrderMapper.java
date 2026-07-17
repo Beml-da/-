@@ -72,6 +72,16 @@ public interface OrderMapper {
     int deleteById(@Param("id") Long id);
 
     /**
+     * 记录付款时间
+     */
+    int updatePaidTime(@Param("id") Long id);
+
+    /**
+     * 记录发货时间
+     */
+    int updateShippedTime(@Param("id") Long id);
+
+    /**
      * 根据商品ID查询订单
      */
     List<Order> findByProductId(@Param("productId") Long productId);

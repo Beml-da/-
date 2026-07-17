@@ -250,12 +250,29 @@
         WHERE id = #{id} AND deleted = 0
     </update>
 
+    <!-- CAS 状态更新：只有当 status = expectedStatus 时才更新为 newStatus -->
+    <update id="updateStatusCAS">
+        UPDATE sys_product
+        SET status = #{newStatus},
+            <if test="newStatus == '已售出'">sold_time = NOW(),</if>
+            update_time = NOW()
+        WHERE id = #{id} AND deleted = 0 AND status = #{expectedStatus}
+    </update>
+
     <update id="deleteById">
         UPDATE sys_product SET deleted = 1, update_time = NOW() WHERE id = #{id}
     </update>
 
     <update id="incrementViewCount">
         UPDATE sys_product SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="incrementFavoriteCount">
+        UPDATE sys_product SET favorite_count = favorite_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="decrementFavoriteCount">
+        UPDATE sys_product SET favorite_count = GREATEST(favorite_count - 1, 0) WHERE id = #{id}
     </update>
 
     <!-- 为现有商品和服务初始化浏览量（仅对view_count=0的商品随机生成浏览量，模拟真实数据） -->

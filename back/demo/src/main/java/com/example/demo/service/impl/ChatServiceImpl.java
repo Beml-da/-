@@ -126,8 +126,6 @@ public class ChatServiceImpl implements ChatService {
 
             if (Boolean.TRUE.equals(toOnline)) {
                 chatWebSocketUtils.sendMessageToOnlineUser(toId, json);
-            } else {
-                pushOfflineMessage(toId, (Long) saved.get("id"));
             }
 
             if (Boolean.TRUE.equals(fromOnline)) {
@@ -157,17 +155,6 @@ public class ChatServiceImpl implements ChatService {
                 chatWebSocketUtils.sendMessageToOnlineUser(fromId, json);
             }
         } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void pushOfflineMessage(Long toId, Long msgId) {
-        try {
-            redisTemplate.opsForList().rightPush("queue:msg:" + toId, msgId.toString());
-            redisTemplate.expire("queue:msg:" + toId, 7, TimeUnit.DAYS);
-            System.out.println("[ChatService] 消息 " + msgId + " 已写入离线队列 for userId=" + toId);
-        } catch (Exception e) {
-            System.out.println("[ChatService] 写入离线队列失败: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -261,17 +248,6 @@ public class ChatServiceImpl implements ChatService {
         }
         evictSessionCache(userId);
         evictHistoryCache(userId, targetUserId);
-    }
-
-    @Override
-    public List<Object> getOfflineMessageIds(Long userId) {
-        List<String> ids = redisTemplate.opsForList().range("queue:msg:" + userId, 0, -1);
-        return ids != null ? new java.util.ArrayList<>(ids) : List.of();
-    }
-
-    @Override
-    public void clearOfflineMessages(Long userId) {
-        redisTemplate.delete("queue:msg:" + userId);
     }
 
     private void evictSessionCache(Long userId) {

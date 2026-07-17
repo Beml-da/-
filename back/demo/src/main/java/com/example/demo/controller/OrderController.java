@@ -5,10 +5,15 @@ import com.example.demo.common.JwtUtil;
 import com.example.demo.common.Result;
 import com.example.demo.entity.Order;
 import com.example.demo.entity.Product;
+import com.example.demo.entity.Refund;
 import com.example.demo.entity.User;
 import com.example.demo.mapper.ProductMapper;
 import com.example.demo.mapper.UserMapper;
+import com.example.demo.service.IdempotencyService;
 import com.example.demo.service.OrderService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +31,17 @@ public class OrderController {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private IdempotencyService idempotencyService;
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * 幂等 token 有效期：5 分钟。客户端在 create/pay 前先调
+     * GET /api/orders/idempotency-token?biz=create 拿到 token 后带回。
+     */
+    private static final long IDEMPOTENCY_TTL_SECONDS = 300;
 
     /**
      * 获取订单列表
@@ -82,6 +98,7 @@ public class OrderController {
 
     /**
      * 创建订单
+     * 幂等：客户端必须先调 GET /api/orders/idempotency-token?biz=create 拿到 token，并在请求体中传 idempotencyToken。
      */
     @RateLimit(keyType = RateLimit.KeyType.USER, count = 10, window = 60, message = "下单过于频繁，请稍后再试")
     @PostMapping
@@ -90,6 +107,16 @@ public class OrderController {
             @RequestBody Map<String, Object> request) {
         try {
             Long buyerId = extractUserId(token);
+
+            String idempotencyToken = request.get("idempotencyToken") == null
+                    ? null : String.valueOf(request.get("idempotencyToken"));
+            if (idempotencyToken == null || idempotencyToken.isEmpty()) {
+                return Result.error(400, "缺少幂等参数 idempotencyToken");
+            }
+            String bizId = "u" + buyerId;
+            if (!idempotencyService.consumeToken("order:create", bizId, idempotencyToken)) {
+                return Result.error(409, "请勿重复提交订单");
+            }
 
             Order order = new Order();
             order.setType((String) request.get("type"));
@@ -111,6 +138,28 @@ public class OrderController {
 
             Order createdOrder = orderService.create(buyerId, order);
             return Result.success(convertOrderToMap(createdOrder), "订单创建成功");
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
+     * 客户端调用此接口获取下单/支付的幂等 token。
+     * GET /api/orders/idempotency-token?biz=create|pay
+     */
+    @GetMapping("/idempotency-token")
+    public Result<Map<String, Object>> issueIdempotencyToken(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestParam(defaultValue = "create") String biz) {
+        try {
+            Long userId = extractUserId(token);
+            String bizId = "u" + userId;
+            String t = idempotencyService.generateToken("order:" + biz, bizId, IDEMPOTENCY_TTL_SECONDS);
+            Map<String, Object> data = new HashMap<>();
+            data.put("idempotencyToken", t);
+            data.put("biz", biz);
+            data.put("ttlSeconds", IDEMPOTENCY_TTL_SECONDS);
+            return Result.success(data);
         } catch (Exception e) {
             return Result.error(400, e.getMessage());
         }
@@ -184,14 +233,21 @@ public class OrderController {
     }
 
     /**
-     * 支付订单
+     * 支付订单（幂等：依赖订单自身的状态机 + 分布式锁；如客户端传 idempotencyToken 也会消费）
      */
     @PutMapping("/{id}/pay")
     public Result<Void> pay(
             @RequestHeader(value = "Authorization", required = false) String token,
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> request) {
         try {
             Long userId = extractUserId(token);
+            if (request != null && request.get("idempotencyToken") != null) {
+                String bizId = "u" + userId + "-order-" + id;
+                if (!idempotencyService.consumeToken("order:pay", bizId, request.get("idempotencyToken"))) {
+                    return Result.error(409, "请勿重复支付");
+                }
+            }
             orderService.pay(id, userId);
             return Result.success(null, "支付成功");
         } catch (Exception e) {
@@ -210,6 +266,76 @@ public class OrderController {
             Long userId = extractUserId(token);
             orderService.delete(id, userId);
             return Result.success(null, "订单已删除");
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
+     * 申请退款（买家）
+     */
+    @PutMapping("/{id}/refund/apply")
+    public Result<Map<String, Object>> applyRefund(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        try {
+            Long userId = extractUserId(token);
+            String reason = request != null ? request.get("reason") : null;
+            Refund refund = orderService.applyRefund(id, userId, reason);
+            return Result.success(refundToMap(refund), "退款申请已提交，等待卖家处理");
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
+     * 同意退款（卖家）
+     */
+    @PutMapping("/{id}/refund/approve")
+    public Result<Void> approveRefund(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable Long id) {
+        try {
+            Long userId = extractUserId(token);
+            orderService.approveRefund(id, userId);
+            return Result.success(null, "已同意退款，金额已退回买家账户");
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
+     * 拒绝退款（卖家）
+     */
+    @PutMapping("/{id}/refund/reject")
+    public Result<Void> rejectRefund(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        try {
+            Long userId = extractUserId(token);
+            String rejectReason = request != null ? request.get("rejectReason") : null;
+            orderService.rejectRefund(id, userId, rejectReason);
+            return Result.success(null, "已拒绝退款申请");
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    /**
+     * 获取订单最新的退款记录
+     */
+    @GetMapping("/{id}/refund")
+    public Result<Map<String, Object>> getLatestRefund(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable Long id) {
+        try {
+            Refund refund = orderService.getLatestRefund(id);
+            if (refund == null) {
+                return Result.success(null);
+            }
+            return Result.success(refundToMap(refund));
         } catch (Exception e) {
             return Result.error(400, e.getMessage());
         }
@@ -252,6 +378,9 @@ public class OrderController {
         map.put("remark", order.getRemark());
         map.put("createTime", order.getCreateTime());
         map.put("updateTime", order.getUpdateTime());
+        map.put("refundStatus", order.getRefundStatus());
+        map.put("refundReason", order.getRefundReason());
+        map.put("refundTime", order.getRefundTime());
 
         // 转换买家信息
         if (order.getBuyer() != null) {
@@ -321,33 +450,38 @@ public class OrderController {
     }
 
     /**
-     * 解析 JSON 数组字符串
+     * 将Refund对象转换为Map
+     */
+    private Map<String, Object> refundToMap(Refund refund) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", refund.getId());
+        map.put("refundNo", refund.getRefundNo());
+        map.put("orderId", refund.getOrderId());
+        map.put("orderNo", refund.getOrderNo());
+        map.put("applicantId", refund.getApplicantId());
+        map.put("sellerId", refund.getSellerId());
+        map.put("amount", refund.getAmount());
+        map.put("reason", refund.getReason());
+        map.put("status", refund.getStatus());
+        map.put("rejectReason", refund.getRejectReason());
+        map.put("processedTime", refund.getProcessedTime());
+        map.put("createTime", refund.getCreateTime());
+        return map;
+    }
+
+    /**
+     * 使用 Jackson 解析 JSON 数组字符串。
+     * 兼容 [\"url1\",\"url2\"]、["url1", "url2"]、空字符串、null 等情况。
      */
     private List<String> parseJsonArray(String json) {
-        List<String> result = new ArrayList<>();
-        if (json == null || json.isEmpty()) return result;
-        json = json.trim();
-        if (json.startsWith("[") && json.endsWith("]")) {
-            json = json.substring(1, json.length() - 1);
+        if (json == null || json.isBlank()) {
+            return new ArrayList<>();
         }
-        if (json.isEmpty()) return result;
-        boolean inQuote = false;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '"' && (i == 0 || json.charAt(i - 1) != '\\')) {
-                inQuote = !inQuote;
-            } else if (c == ',' && !inQuote) {
-                result.add(sb.toString().trim());
-                sb = new StringBuilder();
-            } else {
-                sb.append(c);
-            }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            // 兼容历史脏数据：解析失败返回空数组，由上层空状态兜底
+            return new ArrayList<>();
         }
-        String last = sb.toString().trim();
-        if (!last.isEmpty()) {
-            result.add(last);
-        }
-        return result;
     }
 }

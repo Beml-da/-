@@ -86,3 +86,27 @@ export const clearLoginInfo = () => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_INFO_KEY);
 };
+
+// 刷新本地用户信息（余额等），用于订单操作后同步最新数据
+export const refreshUserInfo = async (): Promise<UserInfo | null> => {
+  try {
+    const resp = await fetch('/api/auth/current', {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+    const json = await resp.json();
+    if (json.code === 200 && json.data) {
+      const updated = json.data as UserInfo;
+      // 保留本地缓存的敏感字段（如果有需要保留的）
+      const stored = getUserInfo();
+      const merged = { ...stored, ...updated };
+      setUserInfo(merged);
+      window.dispatchEvent(new CustomEvent('user-login-updated'));
+      return merged;
+    }
+  } catch (e) {
+    console.error('刷新用户信息失败', e);
+  }
+  return null;
+};

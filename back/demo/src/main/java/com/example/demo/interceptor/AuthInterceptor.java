@@ -29,7 +29,10 @@ public class AuthInterceptor implements HandlerInterceptor {
             String token = authHeader.substring(7);
             try {
                 if (redisTemplate.hasKey("blacklist:" + token)) {
-                    return true;
+                    response.setStatus(401);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":401,\"message\":\"令牌已失效，请重新登录\"}");
+                    return false;
                 }
                 var claims = Jwts.parser()
                         .verifyWith(Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8)))
@@ -40,7 +43,11 @@ public class AuthInterceptor implements HandlerInterceptor {
                 if (userId != null) {
                     UserContext.setCurrentUserId(Long.valueOf(userId.toString()));
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                response.setStatus(401);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":401,\"message\":\"令牌无效或已过期，请重新登录\"}");
+                return false;
             }
         }
         return true;

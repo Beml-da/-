@@ -1,17 +1,20 @@
 import ProductImage from '@/components/ProductImage';
 import { ORDER_STATUS_CONFIG } from '@/constants/campus';
-import { Order } from '@/types';
 import {
+  approveRefund,
+  applyRefund,
   cancelOrder as cancelOrderApi,
   confirmReceiveOrder,
+  getLatestRefund,
   getMyProducts,
   getMyServices,
   getOrders,
   getProduct,
   payOrder,
+  rejectRefund,
   shipOrder,
 } from '@/utils/api';
-import { getUserInfo } from '@/utils/useUser';
+import { getUserInfo, refreshUserInfo } from '@/utils/useUser';
 import {
   ClockCircleOutlined,
   ShopOutlined,
@@ -19,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import { Link, useNavigate } from '@umijs/max';
 import {
+  Alert,
   Avatar,
   Button,
   Card,
@@ -36,10 +40,32 @@ import styles from './index.less';
 
 const { TextArea } = Input;
 
-interface OrderExt extends Order {
+interface OrderExt {
+  id: number;
+  orderNo: string;
+  type: '商品' | '服务';
+  productId?: number;
+  serviceId?: number;
   product?: any;
   service?: any;
-  serviceId?: number;
+  buyerId: number;
+  sellerId: number;
+  buyer?: any;
+  seller?: any;
+  price: number;
+  quantity?: number;
+  totalAmount: number;
+  status: any;
+  contact?: string;
+  remark?: string;
+  createTime?: string;
+  updateTime?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  completedTime?: string;
+  refundStatus?: '退款中' | '已退款' | '已拒绝' | null;
+  refundReason?: string;
+  refundTime?: string;
   isPending?: boolean;
 }
 
@@ -52,6 +78,12 @@ const MyOrdersPage: React.FC = () => {
   const [reviewVisible, setReviewVisible] = useState(false);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
+  const [refundApplyVisible, setRefundApplyVisible] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundRejectVisible, setRefundRejectVisible] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [refundDetail, setRefundDetail] = useState<any>(null);
+  const [refundDetailVisible, setRefundDetailVisible] = useState(false);
 
   // 加载订单
   const loadOrders = useCallback(async () => {
@@ -142,7 +174,7 @@ const MyOrdersPage: React.FC = () => {
               isPending: true,
             }));
 
-            orderList = [...pendingProducts, ...pendingServices];
+            orderList = ([...pendingProducts, ...pendingServices] as unknown) as OrderExt[];
           }
           break;
         case 'pending':
@@ -217,6 +249,7 @@ const MyOrdersPage: React.FC = () => {
           const res = await cancelOrderApi(order.id);
           if (res.code === 200) {
             message.success(isPaid ? '订单已取消，金额已退回' : '订单已取消');
+            refreshUserInfo();
             loadOrders();
           } else {
             message.error(res.message || '取消失败');
@@ -237,6 +270,7 @@ const MyOrdersPage: React.FC = () => {
           const res = await confirmReceiveOrder(order.id);
           if (res.code === 200) {
             message.success('交易完成！卖家已收到款项');
+            refreshUserInfo();
             setSelectedOrder(order);
             setReviewVisible(true);
             loadOrders();
@@ -264,6 +298,113 @@ const MyOrdersPage: React.FC = () => {
     const targetId =
       order.buyerId === currentUser?.id ? order.sellerId : order.buyerId;
     navigate(`/messages?target=${targetId}`);
+  };
+
+  const openRefundApply = (order: OrderExt) => {
+    setSelectedOrder(order);
+    setRefundReason('');
+    setRefundApplyVisible(true);
+  };
+
+  const submitRefundApply = async () => {
+    if (!selectedOrder) return;
+    const trimmed = refundReason.trim();
+    if (trimmed.length < 5) {
+      message.warning('请填写至少 5 个字的退款原因');
+      return;
+    }
+    if (trimmed.length > 500) {
+      message.warning('退款原因不能超过 500 字');
+      return;
+    }
+    try {
+      const res = await applyRefund(selectedOrder.id, trimmed);
+      if (res.code === 200) {
+        message.success('退款申请已提交，等待卖家处理');
+        setRefundApplyVisible(false);
+        setRefundReason('');
+        loadOrders();
+      } else {
+        message.error(res.message || '申请失败');
+      }
+    } catch (error) {
+      message.error('申请退款失败');
+    }
+  };
+
+  const openRefundDetail = async (order: OrderExt) => {
+    setSelectedOrder(order);
+    try {
+      const res = await getLatestRefund(order.id);
+      if (res.code === 200 && res.data) {
+        setRefundDetail(res.data);
+      } else {
+        setRefundDetail({
+          reason: order.refundReason,
+          status: order.refundStatus,
+          processedTime: order.refundTime,
+        });
+      }
+    } catch {
+      setRefundDetail({
+        reason: order.refundReason,
+        status: order.refundStatus,
+        processedTime: order.refundTime,
+      });
+    }
+    setRefundDetailVisible(true);
+  };
+
+  const handleApproveRefund = (order: OrderExt) => {
+    Modal.confirm({
+      title: '同意退款',
+      content: `确定同意该订单的退款申请吗？同意后 ¥${order.totalAmount} 将退回买家账户，订单将变为「已退款」状态。`,
+      okText: '同意退款',
+      okType: 'danger',
+      cancelText: '再想想',
+      onOk: async () => {
+        try {
+          const res = await approveRefund(order.id);
+          if (res.code === 200) {
+            message.success('已同意退款，金额已退回买家');
+            refreshUserInfo();
+            loadOrders();
+          } else {
+            message.error(res.message || '操作失败');
+          }
+        } catch {
+          message.error('操作失败');
+        }
+      },
+    });
+  };
+
+  const openRefundReject = (order: OrderExt) => {
+    setSelectedOrder(order);
+    setRejectReason('');
+    setRefundRejectVisible(true);
+  };
+
+  const submitRefundReject = async () => {
+    if (!selectedOrder) return;
+    const trimmed = rejectReason.trim();
+    if (!trimmed) {
+      message.warning('请填写拒绝原因');
+      return;
+    }
+    try {
+      const res = await rejectRefund(selectedOrder.id, trimmed);
+      if (res.code === 200) {
+        message.success('已拒绝退款申请');
+        setRefundRejectVisible(false);
+        setRejectReason('');
+        loadOrders();
+      } else {
+        message.error(res.message || '操作失败');
+      }
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const getStatusConfig = (status: string) => {
@@ -321,19 +462,20 @@ const MyOrdersPage: React.FC = () => {
           {
             key: 'pay',
             label: '去支付',
-            action: async () => {
-              try {
-                const res = await payOrder(order.id);
-                if (res.code === 200) {
-                  message.success('支付成功，卖家即将发货');
-                  loadOrders();
-                } else {
-                  message.error(res.message || '支付失败');
+              action: async () => {
+                try {
+                  const res = await payOrder(order.id);
+                  if (res.code === 200) {
+                    message.success('支付成功，卖家即将发货');
+                    refreshUserInfo();
+                    loadOrders();
+                  } else {
+                    message.error(res.message || '支付失败');
+                  }
+                } catch (error) {
+                  message.error('支付失败');
                 }
-              } catch (error) {
-                message.error('支付失败');
-              }
-            },
+              },
           },
           {
             key: 'cancel',
@@ -345,11 +487,18 @@ const MyOrdersPage: React.FC = () => {
         break;
       case '待发货':
         if (isBuyer) {
-          actions.push({
-            key: 'contact',
-            label: '联系卖家',
-            action: () => handleContact(order),
-          });
+          actions.push(
+            {
+              key: 'contact',
+              label: '联系卖家',
+              action: () => handleContact(order),
+            },
+            {
+              key: 'refund',
+              label: '申请退款',
+              action: () => openRefundApply(order),
+            },
+          );
         } else {
           actions.push(
             {
@@ -360,6 +509,7 @@ const MyOrdersPage: React.FC = () => {
                   const res = await shipOrder(order.id);
                   if (res.code === 200) {
                     message.success('已确认发货，等待买家确认收货');
+                    refreshUserInfo();
                     loadOrders();
                   } else {
                     message.error(res.message || '操作失败');
@@ -391,8 +541,49 @@ const MyOrdersPage: React.FC = () => {
               label: '联系卖家',
               action: () => handleContact(order),
             },
+            {
+              key: 'refund',
+              label: '申请退款',
+              action: () => openRefundApply(order),
+            },
           );
         }
+        break;
+      case '退款中':
+        if (isBuyer) {
+          actions.push({
+            key: 'refundDetail',
+            label: '退款详情',
+            action: () => openRefundDetail(order),
+          });
+        } else {
+          actions.push(
+            {
+              key: 'approve',
+              label: '同意退款',
+              action: () => handleApproveRefund(order),
+            },
+            {
+              key: 'reject',
+              label: '拒绝退款',
+              action: () => openRefundReject(order),
+              type: 'text',
+            },
+            {
+              key: 'refundDetail',
+              label: '查看原因',
+              action: () => openRefundDetail(order),
+              type: 'text',
+            },
+          );
+        }
+        break;
+      case '已退款':
+        actions.push({
+          key: 'refundDetail',
+          label: '退款详情',
+          action: () => openRefundDetail(order),
+        });
         break;
       case '已完成':
         actions.push({
@@ -479,6 +670,30 @@ const MyOrdersPage: React.FC = () => {
                 </div>
 
                 <div className={styles.orderContent}>
+                  {order.refundReason &&
+                    (order.status === '退款中' ||
+                      order.status === '已退款' ||
+                      order.status === '待发货' ||
+                      order.status === '待收货') && (
+                      <Alert
+                        className={styles.refundAlert}
+                        type={
+                          order.status === '已退款'
+                            ? 'success'
+                            : order.status === '退款中'
+                            ? 'warning'
+                            : 'info'
+                        }
+                        showIcon
+                        message={
+                          order.status === '已退款'
+                            ? `已退款：${order.refundReason}`
+                            : order.status === '退款中'
+                            ? `退款申请中：${order.refundReason}`
+                            : `退款已拒绝：${order.refundReason}`
+                        }
+                      />
+                    )}
                   <div className={styles.productInfo}>
                     {order.product && (
                       <Link
@@ -610,6 +825,167 @@ const MyOrdersPage: React.FC = () => {
                 value={reviewContent}
                 onChange={(e) => setReviewContent(e.target.value)}
               />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 申请退款弹窗 */}
+      <Modal
+        title="申请退款"
+        open={refundApplyVisible}
+        onCancel={() => setRefundApplyVisible(false)}
+        onOk={submitRefundApply}
+        okText="提交申请"
+        cancelText="取消"
+        width={520}
+      >
+        {selectedOrder && (
+          <div className={styles.refundForm}>
+            <Alert
+              className={styles.refundTip}
+              type="info"
+              showIcon
+              message="提交后将通知卖家，卖家同意后退款将原路退回您的账户余额。"
+            />
+            <div className={styles.refundSummary}>
+              <div className={styles.refundSummaryRow}>
+                <span>订单号</span>
+                <span>{selectedOrder.orderNo}</span>
+              </div>
+              <div className={styles.refundSummaryRow}>
+                <span>退款金额</span>
+                <span className={styles.refundAmount}>
+                  ¥{selectedOrder.totalAmount}
+                </span>
+              </div>
+            </div>
+            <div className={styles.refundField}>
+              <span className={styles.refundLabel}>
+                退款原因 <em>*</em>
+              </span>
+              <TextArea
+                rows={4}
+                placeholder="请详细说明退款原因（5-500 字），例如：商品与描述不符 / 收到货有破损 / 不需要了..."
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                maxLength={500}
+                showCount
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 拒绝退款弹窗 */}
+      <Modal
+        title="拒绝退款申请"
+        open={refundRejectVisible}
+        onCancel={() => setRefundRejectVisible(false)}
+        onOk={submitRefundReject}
+        okText="确认拒绝"
+        okType="danger"
+        cancelText="取消"
+        width={520}
+      >
+        {selectedOrder && (
+          <div className={styles.refundForm}>
+            <Alert
+              className={styles.refundTip}
+              type="warning"
+              showIcon
+              message="拒绝后订单将回到原状态，买家可以继续走发货/收货流程。请认真填写拒绝原因以减少纠纷。"
+            />
+            <div className={styles.refundSummary}>
+              <div className={styles.refundSummaryRow}>
+                <span>订单号</span>
+                <span>{selectedOrder.orderNo}</span>
+              </div>
+              <div className={styles.refundSummaryRow}>
+                <span>买家退款原因</span>
+                <span>{selectedOrder.refundReason || '未填写'}</span>
+              </div>
+            </div>
+            <div className={styles.refundField}>
+              <span className={styles.refundLabel}>
+                拒绝原因 <em>*</em>
+              </span>
+              <TextArea
+                rows={4}
+                placeholder="请说明拒绝退款的原因，例如：商品已发出且无质量问题 / 已与买家沟通协商..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                maxLength={500}
+                showCount
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 退款详情弹窗 */}
+      <Modal
+        title="退款详情"
+        open={refundDetailVisible}
+        onCancel={() => setRefundDetailVisible(false)}
+        footer={[
+          <Button
+            key="ok"
+            type="primary"
+            onClick={() => setRefundDetailVisible(false)}
+          >
+            关闭
+          </Button>,
+        ]}
+        width={520}
+      >
+        {refundDetail && (
+          <div className={styles.refundDetail}>
+            <div className={styles.refundSummary}>
+              <div className={styles.refundSummaryRow}>
+                <span>退款单号</span>
+                <span>{refundDetail.refundNo || '-'}</span>
+              </div>
+              <div className={styles.refundSummaryRow}>
+                <span>退款金额</span>
+                <span className={styles.refundAmount}>
+                  ¥{refundDetail.amount ?? selectedOrder?.totalAmount}
+                </span>
+              </div>
+              <div className={styles.refundSummaryRow}>
+                <span>当前状态</span>
+                <Tag
+                  color={
+                    refundDetail.status === '已退款'
+                      ? 'green'
+                      : refundDetail.status === '已拒绝'
+                      ? 'red'
+                      : 'orange'
+                  }
+                >
+                  {refundDetail.status || selectedOrder?.refundStatus || '-'}
+                </Tag>
+              </div>
+              <div className={styles.refundSummaryRow}>
+                <span>申请原因</span>
+                <span>{refundDetail.reason || '-'}</span>
+              </div>
+              {refundDetail.rejectReason && (
+                <div className={styles.refundSummaryRow}>
+                  <span>拒绝原因</span>
+                  <span>{refundDetail.rejectReason}</span>
+                </div>
+              )}
+              <div className={styles.refundSummaryRow}>
+                <span>申请时间</span>
+                <span>{formatDate(refundDetail.createTime)}</span>
+              </div>
+              {refundDetail.processedTime && (
+                <div className={styles.refundSummaryRow}>
+                  <span>处理时间</span>
+                  <span>{formatDate(refundDetail.processedTime)}</span>
+                </div>
+              )}
             </div>
           </div>
         )}

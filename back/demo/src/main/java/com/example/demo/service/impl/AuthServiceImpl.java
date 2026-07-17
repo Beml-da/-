@@ -271,4 +271,12 @@ public class AuthServiceImpl implements AuthService {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public void refreshUserCache(Long userId) {
+        User user = userMapper.findById(userId);
+        if (user != null) {
+            cacheUserSession(user);
+        }
+    }
 }

@@ -90,6 +90,14 @@ public interface ProductMapper {
     int updateStatus(@Param("id") Long id, @Param("status") String status);
 
     /**
+     * CAS 更新商品状态：只有当 currentStatus 匹配时才更新
+     * @return 影响行数；0 表示状态已被别人改了
+     */
+    int updateStatusCAS(@Param("id") Long id,
+                        @Param("expectedStatus") String expectedStatus,
+                        @Param("newStatus") String newStatus);
+
+    /**
      * 删除商品
      */
     int deleteById(@Param("id") Long id);
@@ -98,6 +106,16 @@ public interface ProductMapper {
      * 浏览量+1
      */
     int incrementViewCount(@Param("id") Long id);
+
+    /**
+     * 收藏数+1
+     */
+    int incrementFavoriteCount(@Param("id") Long id);
+
+    /**
+     * 收藏数-1（最低为0）
+     */
+    int decrementFavoriteCount(@Param("id") Long id);
 
     /**
      * 初始化浏览量（模拟真实浏览数据）

@@ -287,3 +287,80 @@
     min-width: 80px;
   }
 }
+
+/* 退款提示横幅 */
+.refundAlert {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* 退款表单 */
+.refundForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.refundTip {
+  border-radius: 8px;
+}
+
+.refundSummary {
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.refundSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 13px;
+  color: #666;
+  gap: 16px;
+
+  > span:first-child {
+    flex-shrink: 0;
+    color: #999;
+  }
+
+  > span:last-child {
+    text-align: right;
+    color: #333;
+    word-break: break-all;
+  }
+}
+
+.refundAmount {
+  font-size: 18px !important;
+  font-weight: 600;
+  color: #ff4d4f !important;
+}
+
+.refundField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refundLabel {
+  font-size: 13px;
+  color: #333;
+
+  em {
+    color: #ff4d4f;
+    font-style: normal;
+    margin-left: 2px;
+  }
+}
+
+/* 退款详情 */
+.refundDetail {
+  padding-top: 8px;
+}

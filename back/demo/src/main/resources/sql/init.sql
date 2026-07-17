@@ -113,7 +113,7 @@ CREATE TABLE trade_order (
     price           DECIMAL(10,2)  NOT NULL                    COMMENT '单价',
     quantity        INT             DEFAULT 1                   COMMENT '数量',
     total_amount    DECIMAL(10,2)  NOT NULL                    COMMENT '总金额',
-    status          VARCHAR(20)     DEFAULT '待付款'              COMMENT '订单状态(待付款/待发货/待收货/已完成/已取消)',
+    status          VARCHAR(20)     DEFAULT '待付款'              COMMENT '订单状态(待付款/待发货/待收货/已完成/已取消/退款中/已退款)',
     contact         VARCHAR(50)     DEFAULT NULL                COMMENT '联系方式',
     remark          TEXT            DEFAULT NULL                COMMENT '买家备注',
     deleted         TINYINT(1)      DEFAULT 0                   COMMENT '删除标记',
@@ -123,13 +123,44 @@ CREATE TABLE trade_order (
     shipped_time    DATETIME        DEFAULT NULL                COMMENT '发货时间',
     completed_time  DATETIME        DEFAULT NULL                COMMENT '完成时间',
     canceled_time   DATETIME        DEFAULT NULL                COMMENT '取消时间',
+    refund_status   VARCHAR(20)     DEFAULT NULL                COMMENT '退款状态: 退款中/已退款/已拒绝',
+    refund_reason   VARCHAR(500)    DEFAULT NULL                COMMENT '退款原因',
+    refund_time     DATETIME        DEFAULT NULL                COMMENT '退款完成时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_order_no (order_no),
     KEY idx_buyer_id (buyer_id),
     KEY idx_seller_id (seller_id),
     KEY idx_status (status),
-    KEY idx_type (type)
+    KEY idx_type (type),
+    KEY idx_refund_status (refund_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
+
+-- ============================================
+-- 5.5 退款申请表 (trade_refund)
+-- 对应前端: 我的订单-申请退款/同意退款
+-- ============================================
+DROP TABLE IF EXISTS trade_refund;
+CREATE TABLE trade_refund (
+    id              BIGINT(20)      NOT NULL AUTO_INCREMENT     COMMENT '退款记录ID',
+    refund_no       VARCHAR(32)     NOT NULL                    COMMENT '退款单号',
+    order_id        BIGINT(20)      NOT NULL                    COMMENT '订单ID',
+    order_no        VARCHAR(32)     NOT NULL                    COMMENT '订单号',
+    applicant_id    BIGINT(20)      NOT NULL                    COMMENT '申请人ID(买家)',
+    seller_id       BIGINT(20)      NOT NULL                    COMMENT '卖家ID',
+    amount          DECIMAL(10,2)   NOT NULL                    COMMENT '退款金额',
+    reason          VARCHAR(500)    NOT NULL                    COMMENT '退款原因',
+    status          VARCHAR(20)     DEFAULT '退款中'            COMMENT '退款状态: 退款中/已退款/已拒绝',
+    reject_reason   VARCHAR(500)    DEFAULT NULL                COMMENT '拒绝原因',
+    processed_time  DATETIME        DEFAULT NULL                COMMENT '处理时间(同意或拒绝)',
+    create_time     DATETIME        DEFAULT CURRENT_TIMESTAMP   COMMENT '申请时间',
+    update_time     DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_refund_no (refund_no),
+    KEY idx_order_id (order_id),
+    KEY idx_applicant_id (applicant_id),
+    KEY idx_seller_id (seller_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款申请表';
 
 -- ============================================
 -- 6. 收藏表 (sys_favorite)
@@ -487,3 +518,35 @@ INSERT INTO promo_user_coupon (user_id, coupon_id, status, expire_time) VALUES
 -- ============================================
 -- ALTER TABLE sys_user ADD COLUMN balance DECIMAL(12,2) DEFAULT 1000.00 COMMENT '账户余额(元)';
 -- UPDATE sys_user SET balance = 1000.00 WHERE balance IS NULL OR balance = 0;
+
+-- ============================================
+-- 退款功能字段迁移脚本（给已有订单表增加退款字段）
+-- 如已部署过旧版，可单独执行以下 SQL
+-- ============================================
+-- ALTER TABLE trade_order
+--   ADD COLUMN refund_status  VARCHAR(20)  DEFAULT NULL COMMENT '退款状态',
+--   ADD COLUMN refund_reason  VARCHAR(500) DEFAULT NULL COMMENT '退款原因',
+--   ADD COLUMN refund_time    DATETIME     DEFAULT NULL COMMENT '退款完成时间',
+--   ADD KEY idx_refund_status (refund_status);
+--
+-- CREATE TABLE IF NOT EXISTS trade_refund (
+--     id              BIGINT(20)      NOT NULL AUTO_INCREMENT,
+--     refund_no       VARCHAR(32)     NOT NULL,
+--     order_id        BIGINT(20)      NOT NULL,
+--     order_no        VARCHAR(32)     NOT NULL,
+--     applicant_id    BIGINT(20)      NOT NULL,
+--     seller_id       BIGINT(20)      NOT NULL,
+--     amount          DECIMAL(10,2)   NOT NULL,
+--     reason          VARCHAR(500)    NOT NULL,
+--     status          VARCHAR(20)     DEFAULT '退款中',
+--     reject_reason   VARCHAR(500)    DEFAULT NULL,
+--     processed_time  DATETIME        DEFAULT NULL,
+--     create_time     DATETIME        DEFAULT CURRENT_TIMESTAMP,
+--     update_time     DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--     PRIMARY KEY (id),
+--     UNIQUE KEY uk_refund_no (refund_no),
+--     KEY idx_order_id (order_id),
+--     KEY idx_applicant_id (applicant_id),
+--     KEY idx_seller_id (seller_id),
+--     KEY idx_status (status)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款申请表';

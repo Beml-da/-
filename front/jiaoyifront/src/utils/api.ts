@@ -463,6 +463,24 @@ export interface Order {
   createTime?: string;
   updateTime?: string;
   completedTime?: string;
+  refundStatus?: '退款中' | '已退款' | '已拒绝' | null;
+  refundReason?: string;
+  refundTime?: string;
+}
+
+export interface Refund {
+  id: number;
+  refundNo: string;
+  orderId: number;
+  orderNo: string;
+  applicantId: number;
+  sellerId: number;
+  amount: number;
+  reason: string;
+  status: '退款中' | '已退款' | '已拒绝';
+  rejectReason?: string;
+  processedTime?: string;
+  createTime?: string;
 }
 
 export interface OrderQuery {
@@ -505,14 +523,41 @@ export async function getOrder(id: number): Promise<ApiResponse<Order>> {
 }
 
 /**
- * 创建订单
+ * 获取下单/支付的幂等 token。
+ * 客户端在 createOrder/payOrder 之前调用，避免重复提交。
+ */
+export async function fetchIdempotencyToken(
+  biz: 'create' | 'pay',
+): Promise<ApiResponse<{ idempotencyToken: string; biz: string; ttlSeconds: number }>> {
+  return request('/api/orders/idempotency-token', {
+    method: 'GET',
+    params: { biz },
+  });
+}
+
+/**
+ * 创建订单（自动获取幂等 token，防止重复点击）
  */
 export async function createOrder(
   params: Partial<Order>,
 ): Promise<ApiResponse<Order>> {
+  const tokenResp = await fetchIdempotencyToken('create');
+  const idempotencyToken = tokenResp?.data?.idempotencyToken;
   return request('/api/orders', {
     method: 'POST',
-    data: params,
+    data: { ...params, idempotencyToken },
+  });
+}
+
+/**
+ * 支付订单（自动获取幂等 token，防止重复点击）
+ */
+export async function payOrder(id: number): Promise<ApiResponse<null>> {
+  const tokenResp = await fetchIdempotencyToken('pay');
+  const idempotencyToken = tokenResp?.data?.idempotencyToken;
+  return request(`/api/orders/${id}/pay`, {
+    method: 'PUT',
+    data: { idempotencyToken },
   });
 }
 
@@ -543,15 +588,6 @@ export async function cancelOrder(
 }
 
 /**
- * 支付订单
- */
-export async function payOrder(id: number): Promise<ApiResponse<null>> {
-  return request(`/api/orders/${id}/pay`, {
-    method: 'PUT',
-  });
-}
-
-/**
  * 确认发货（卖家）
  */
 export async function shipOrder(id: number): Promise<ApiResponse<null>> {
@@ -568,6 +604,52 @@ export async function confirmReceiveOrder(
 ): Promise<ApiResponse<null>> {
   return request(`/api/orders/${id}/confirm`, {
     method: 'PUT',
+  });
+}
+
+/**
+ * 申请退款（买家）
+ */
+export async function applyRefund(
+  id: number,
+  reason: string,
+): Promise<ApiResponse<Refund>> {
+  return request(`/api/orders/${id}/refund/apply`, {
+    method: 'PUT',
+    data: { reason },
+  });
+}
+
+/**
+ * 同意退款（卖家）
+ */
+export async function approveRefund(id: number): Promise<ApiResponse<null>> {
+  return request(`/api/orders/${id}/refund/approve`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * 拒绝退款（卖家）
+ */
+export async function rejectRefund(
+  id: number,
+  rejectReason: string,
+): Promise<ApiResponse<null>> {
+  return request(`/api/orders/${id}/refund/reject`, {
+    method: 'PUT',
+    data: { rejectReason },
+  });
+}
+
+/**
+ * 获取订单最新的退款记录
+ */
+export async function getLatestRefund(
+  id: number,
+): Promise<ApiResponse<Refund>> {
+  return request(`/api/orders/${id}/refund`, {
+    method: 'GET',
   });
 }
 

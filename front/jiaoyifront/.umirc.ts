@@ -22,7 +22,6 @@ export default defineConfig({
       changeOrigin: true,
     },
   },
-  //139.199.182.26,localhost
 
   layout: {
     title: '校园交易行',

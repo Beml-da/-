@@ -33,4 +33,12 @@ public interface ChatMessageMapper {
             "LEFT JOIN sys_user u ON u.id = m.from_id " +
             "WHERE m.id = #{id}")
     ChatMessageVO findById(@Param("id") Long id);
+
+    /** 查询某用户所有未读消息（按发送时间排序，上线时批量推送用） */
+    @Select("SELECT m.*, u.nickname as from_nickname, u.avatar as from_avatar " +
+            "FROM chat_message m " +
+            "LEFT JOIN sys_user u ON u.id = m.from_id " +
+            "WHERE m.to_id = #{userId} AND m.is_read = 0 " +
+            "ORDER BY m.create_time ASC")
+    List<ChatMessageVO> findUnreadMessages(@Param("userId") Long userId);
 }

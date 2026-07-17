@@ -47,4 +47,9 @@ public interface AuthService {
      * 验证手机验证码是否正确
      */
     boolean verifySmsCode(String phone, String code);
+
+    /**
+     * 刷新用户在 Redis 中的缓存（余额变更后调用）
+     */
+    void refreshUserCache(Long userId);
 }

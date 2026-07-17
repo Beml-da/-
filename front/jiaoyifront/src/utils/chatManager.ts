@@ -43,8 +43,19 @@ class ChatManager {
     const token = getToken();
     if (!token) {
       console.log('[Chat WS] 未登录，跳过连接');
-      this._cleanup();
+      // 未登录：清理状态但保留 disconnect 路径，避免 onclose 误触发重连
+      if (this.ws) {
+        try { this.ws.close(); } catch (_) { /* noop */ }
+        this.ws = null;
+      }
+      this._connected = false;
+      this.notify();
       return;
+    }
+    // token 变了：关掉旧连接再建新的
+    if (this.ws && this.ws.url && !this.ws.url.includes(encodeURIComponent(token.slice(-10)))) {
+      try { this.ws.close(); } catch (_) { /* noop */ }
+      this.ws = null;
     }
     if (this.ws?.readyState === WebSocket.OPEN) {
       console.log('[Chat WS] 已连接，跳过');
@@ -68,13 +79,19 @@ class ChatManager {
     };
 
     ws.onmessage = (event) => {
+      // 防御：空帧 / 格式异常的帧直接跳过，不让 JSON.parse 抛错打断流程
+      const raw: string = typeof event.data === 'string' ? event.data : '';
+      if (!raw || raw.trim() === '') {
+        console.warn('[Chat WS] 收到空帧，已跳过');
+        return;
+      }
       try {
-        const msg: WsMessage = JSON.parse(event.data);
+        const msg: WsMessage = JSON.parse(raw);
         console.log('[Chat WS] 收到消息:', msg);
         if (msg.type === 'pong') return;
         this.subscribers.forEach((h) => h(msg));
       } catch (e) {
-        console.error('[Chat WS] 解析消息失败:', e);
+        console.error('[Chat WS] 解析消息失败, raw=', raw.slice(0, 200), 'err=', e);
       }
     };
 

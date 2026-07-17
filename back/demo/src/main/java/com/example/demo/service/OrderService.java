@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Order;
+import com.example.demo.entity.Refund;
 import java.util.List;
 
 public interface OrderService {
@@ -64,4 +65,28 @@ public interface OrderService {
      * 根据商品ID查询订单
      */
     List<Order> getByProductId(Long productId);
+
+    /**
+     * 申请退款（买家）
+     * @param orderId 订单ID
+     * @param userId 申请人（必须是买家）
+     * @param reason 退款原因（至少5个字）
+     * @return 退款记录
+     */
+    Refund applyRefund(Long orderId, Long userId, String reason);
+
+    /**
+     * 同意退款（卖家）
+     */
+    void approveRefund(Long orderId, Long userId);
+
+    /**
+     * 拒绝退款（卖家）
+     */
+    void rejectRefund(Long orderId, Long userId, String rejectReason);
+
+    /**
+     * 获取订单最新的退款记录
+     */
+    Refund getLatestRefund(Long orderId);
 }

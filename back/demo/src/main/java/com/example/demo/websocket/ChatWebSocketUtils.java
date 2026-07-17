@@ -4,13 +4,13 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.web.socket.TextMessage;
 
 @Component
 public class ChatWebSocketUtils {
@@ -24,6 +24,9 @@ public class ChatWebSocketUtils {
     private StringRedisTemplate redisTemplate;
 
     private static final Map<Long, WebSocketSession> sessions = new ConcurrentHashMap<>();
+
+    /** 按 session 串行化发送，避免 Tomcat WebSocket 状态机进入非法状态 */
+    private static final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
 
     /**
      * 服务启动时清空 online 集合：
@@ -107,12 +110,52 @@ public class ChatWebSocketUtils {
 
     public void sendMessageToOnlineUser(Long userId, String json) {
         WebSocketSession session = sessions.get(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                session.sendMessage(new TextMessage(json));
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (session == null || !session.isOpen()) {
+            return;
+        }
+        if (json == null || json.isEmpty()) {
+            return;
+        }
+        Object lock = lockFor(session);
+        synchronized (lock) {
+            if (!session.isOpen()) {
+                return;
             }
+            safeSendOnSession(session, json);
+        }
+    }
+
+    /**
+     * 获取 session 级别的串行化锁。外部需要保证同一 session 上所有发送都共用此锁，
+     * 避免 Tomcat WebSocket 状态机进入非法 TEXT_PARTIAL_WRITING。
+     */
+    public Object lockFor(WebSocketSession session) {
+        return sessionLocks.computeIfAbsent(session.getId(), k -> new Object());
+    }
+
+    /** WebSocket 断开后清理该 session 的串行化锁，防止长期运行后 sessionLocks 无界增长 */
+    public void clearLockFor(WebSocketSession session) {
+        if (session != null) {
+            sessionLocks.remove(session.getId());
+        }
+    }
+
+    /**
+     * 在已持有的 session 上串行化发送：空字符串过滤 + 状态机异常兜底。
+     * 调用方需自行在外层 synchronized(lockFor(session))。
+     */
+    public void safeSendOnSession(WebSocketSession session, String json) {
+        if (session == null || json == null || json.isEmpty()) {
+            return;
+        }
+        if (!session.isOpen()) {
+            return;
+        }
+        try {
+            session.sendMessage(new TextMessage(json));
+        } catch (IOException | IllegalStateException | IllegalArgumentException e) {
+            System.out.println("[WS] sendMessageToOnlineUser 失败 sessionId="
+                    + session.getId() + " err=" + e.getMessage());
         }
     }
 }

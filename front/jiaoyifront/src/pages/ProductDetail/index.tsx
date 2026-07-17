@@ -1,6 +1,7 @@
 import ProductImage from '@/components/ProductImage';
 import { CONDITION_OPTIONS } from '@/constants/campus';
 import { createOrder, getCurrentUser, getProduct } from '@/utils/api';
+import { refreshUserInfo } from '@/utils/useUser';
 import {
   ClockCircleOutlined,
   EnvironmentOutlined,
@@ -114,7 +115,13 @@ const ProductDetailPage: React.FC = () => {
 
   const images: string[] = parseJsonArray(product.images);
 
+  const isProductUnavailable = product.status === '已预订' || product.status === '已售出' || product.status === '已下架';
+
   const handleBuy = async () => {
+    if (isProductUnavailable) {
+      message.warning('该商品当前不可购买');
+      return;
+    }
     try {
       const res = await createOrder({
         type: '商品',
@@ -122,6 +129,7 @@ const ProductDetailPage: React.FC = () => {
       });
       if (res.code === 200) {
         message.success('订单已创建，请尽快支付');
+        await refreshUserInfo();
         navigate('/orders');
       } else {
         message.error(res.message || '创建订单失败');
@@ -246,6 +254,16 @@ const ProductDetailPage: React.FC = () => {
             {product.condition && (
               <Tag color={conditionConfig?.color}>{product.condition}</Tag>
             )}
+            {product.status && (
+              <Tag color={
+                product.status === '在售' ? 'green'
+                  : product.status === '已预订' ? 'orange'
+                  : product.status === '已下架' ? 'default'
+                  : 'red'
+              }>
+                {product.status}
+              </Tag>
+            )}
             <span className={styles.metaItem}>
               <EyeOutlined /> {product.viewCount || 0} 次浏览
             </span>
@@ -328,8 +346,9 @@ const ProductDetailPage: React.FC = () => {
                 icon={<ShopOutlined />}
                 onClick={handleBuy}
                 className={styles.buyBtn}
+                disabled={isProductUnavailable}
               >
-                立即购买
+                {isProductUnavailable ? '不可购买' : '立即购买'}
               </Button>
             )}
           </div>

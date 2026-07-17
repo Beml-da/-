@@ -24,6 +24,9 @@ public class Order {
     private LocalDateTime shippedTime;
     private LocalDateTime completedTime;
     private LocalDateTime canceledTime;
+    private String refundStatus;
+    private String refundReason;
+    private LocalDateTime refundTime;
 
     // 关联对象（非数据库字段）
     private Product product;
@@ -91,6 +94,15 @@ public class Order {
 
     public LocalDateTime getCanceledTime() { return canceledTime; }
     public void setCanceledTime(LocalDateTime canceledTime) { this.canceledTime = canceledTime; }
+
+    public String getRefundStatus() { return refundStatus; }
+    public void setRefundStatus(String refundStatus) { this.refundStatus = refundStatus; }
+
+    public String getRefundReason() { return refundReason; }
+    public void setRefundReason(String refundReason) { this.refundReason = refundReason; }
+
+    public LocalDateTime getRefundTime() { return refundTime; }
+    public void setRefundTime(LocalDateTime refundTime) { this.refundTime = refundTime; }
 
     public Product getProduct() { return product; }
     public void setProduct(Product product) { this.product = product; }

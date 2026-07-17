@@ -86,6 +86,22 @@ public class CustomerServiceAiController {
     }
 
     /**
+     * GET /api/ai/customer-service/memory
+     * 查看当前用户的 AI 对话记忆（调试用）。
+     */
+    @GetMapping("/memory")
+    public Result<java.util.List<java.util.Map<String, Object>>> memory(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        Long userId;
+        try {
+            userId = UserContext.getCurrentUserId();
+        } catch (Exception e) {
+            return Result.error(401, "请先登录");
+        }
+        return Result.success(customerServiceAiService.getMemory(userId));
+    }
+
+    /**
      * POST /api/ai/customer-service/reset
      * 清除当前用户的对话上下文。
      */

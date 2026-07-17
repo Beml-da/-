@@ -87,22 +87,32 @@ public class CustomerServiceAiService {
         // Step 3: 调用 ChatClient
         String reply;
         try {
+            // 调试：查看 ChatMemory 实际类型 + 调用前记忆条数
+            int beforeSize = chatMemory.get(conversationId).size();
+            log.info("[CustomerServiceAi] ChatMemory={}, convId={}, beforeSize={}",
+                    chatMemory.getClass().getSimpleName(), conversationId, beforeSize);
+
             reply = chatClient.prompt()
                     .system(enhancedSystem)
-                    .advisors(
-                            QuestionAnswerAdvisor.builder(vectorStore)
-                                    .searchRequest(SearchRequest.builder()
-                                            .query(question)
-                                            .topK(TOP_K)
-                                            .similarityThreshold(0.4)
-                                            .build())
-                                    .build(),
-                            MessageChatMemoryAdvisor.builder(chatMemory).build()
-                    )
                     .user(question)
-                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
+                    .advisors(a -> a
+                            .advisors(
+                                    QuestionAnswerAdvisor.builder(vectorStore)
+                                            .searchRequest(SearchRequest.builder()
+                                                    .query(question)
+                                                    .topK(TOP_K)
+                                                    .similarityThreshold(0.4)
+                                                    .build())
+                                            .build(),
+                                    MessageChatMemoryAdvisor.builder(chatMemory).build()
+                            )
+                            .param(ChatMemory.CONVERSATION_ID, conversationId))
                     .call()
                     .content();
+
+            // 调试：查看调用后记忆条数
+            int afterSize = chatMemory.get(conversationId).size();
+            log.info("[CustomerServiceAi] convId={}, afterSize={}", conversationId, afterSize);
         } catch (Exception e) {
             log.error("[CustomerServiceAi] 调用失败 | userId={} | error={}", userId, e.getMessage(), e);
             reply = "同学，AI 服务遇到了点问题，请稍后重试或联系人工客服~";
@@ -140,6 +150,25 @@ public class CustomerServiceAiService {
             log.warn("[CustomerServiceAi] RAG 检索异常: {}", e.getMessage());
             return "";
         }
+    }
+
+    /**
+     * 查看对话记忆（调试用）。
+     */
+    public java.util.List<java.util.Map<String, Object>> getMemory(Long userId) {
+        java.util.List<java.util.Map<String, Object>> list = new java.util.ArrayList<>();
+        try {
+            var messages = chatMemory.get(String.valueOf(userId));
+            for (var msg : messages) {
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("role", msg.getMessageType().name());
+                m.put("content", msg.getText());
+                list.add(m);
+            }
+        } catch (Exception e) {
+            log.warn("[CustomerServiceAi] 读取记忆失败: {}", e.getMessage());
+        }
+        return list;
     }
 
     public record CustomerAnswer(String answer, String context) {}
