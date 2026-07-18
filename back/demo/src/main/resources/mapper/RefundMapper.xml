@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.RefundMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.entity.Refund">
+        <id column="id" property="id"/>
+        <result column="refund_no" property="refundNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="applicant_id" property="applicantId"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="amount" property="amount"/>
+        <result column="reason" property="reason"/>
+        <result column="status" property="status"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="processed_time" property="processedTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trade_refund (refund_no, order_id, order_no, applicant_id, seller_id,
+                                  amount, reason, status, create_time, update_time)
+        VALUES (#{refundNo}, #{orderId}, #{orderNo}, #{applicantId}, #{sellerId},
+                #{amount}, #{reason}, #{status}, NOW(), NOW())
+    </insert>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM trade_refund WHERE id = #{id}
+    </select>
+
+    <select id="findByRefundNo" resultMap="BaseResultMap">
+        SELECT * FROM trade_refund WHERE refund_no = #{refundNo}
+    </select>
+
+    <select id="findLatestByOrderId" resultMap="BaseResultMap">
+        SELECT * FROM trade_refund
+        WHERE order_id = #{orderId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateStatus">
+        UPDATE trade_refund
+        SET status = #{status},
+            update_time = NOW(),
+            processed_time = NOW()
+        <if test="rejectReason != null">, reject_reason = #{rejectReason}</if>
+        WHERE id = #{id}
+    </update>
+
+</mapper>

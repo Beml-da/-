@@ -129,7 +129,13 @@ const FloatingBall: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
       } catch {}
     };
     load();
-    const timer = setInterval(load, 10000);
+
+    // WebSocket 推送新好友申请时刷新
+    const unsub = chatManager.subscribe((msg) => {
+      if (msg.type === 'friend-request-new') {
+        load();
+      }
+    });
 
     const handleRequestsUpdated = () => {
       load();
@@ -137,7 +143,7 @@ const FloatingBall: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
     window.addEventListener('friend-requests-updated', handleRequestsUpdated);
 
     return () => {
-      clearInterval(timer);
+      unsub();
       window.removeEventListener('friend-requests-updated', handleRequestsUpdated);
     };
   }, []);

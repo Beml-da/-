@@ -1,0 +1,99 @@
+# ============================================================
+# 交易行后端 - 应用配置
+# Spring Boot YAML 配置（UTF-8 编码，中文注释正常显示）
+# ============================================================
+
+# 应用配置
+spring:
+  application:
+    name: jiaoyihang-trade
+
+  # 数据库配置（建议通过环境变量覆盖：DB_URL / DB_USERNAME / DB_PASSWORD）
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/jiaoyihang?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:159753}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis 配置（建议通过环境变量覆盖）
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 5000
+
+  # ========== Spring AI DeepSeek 配置 ==========
+  ai:
+    deepseek:
+      api-key: ${AI_API_KEY:}
+      base-url: ${AI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${AI_MODEL:deepseek-chat}
+          temperature: 0.5
+          max-tokens: 800
+
+    # Embedding：通义千问 DashScope（兼容 OpenAI 接口，1024 维）
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com}
+      embedding:
+        options:
+          model: text-embedding-v3
+          dimensions: 1024
+
+    # ChatMemory 使用自定义 RedisChatMemory（绕过 Spring AI 的 Jedis 兼容问题）
+    # 不再使用 spring.ai.chat-memory.repository.redis 自动装配
+
+    # 内存向量库持久化文件
+    vectorstore:
+      simple:
+        persist-path: ${VECTOR_STORE_PATH:./data/vectorstore.json}
+
+  # 关闭有问题的 Spring AI Redis 自动装配（均引用不存在的 Jedis RedisClient 类）
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.redis.autoconfigure.RedisVectorStoreAutoConfiguration
+      - org.springframework.ai.model.chat.memory.redis.autoconfigure.RedisChatMemoryAutoConfiguration
+
+# MyBatis 配置
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.example.demo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  check-config-location: true
+
+# 服务器配置
+server:
+  port: ${SERVER_PORT:8080}
+
+# 上传配置（建议通过环境变量覆盖）
+upload:
+  path: ${UPLOAD_PATH:D:/jiaoyihang/uploads}
+
+# JWT 配置（生产环境必须通过环境变量覆盖）
+jwt:
+  secret: ${JWT_SECRET:jiaoyihang-trade-system-secret-key-2024-very-long-and-secure}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# 日志配置
+logging:
+  level:
+    com.example.demo: INFO
+    org.springframework.web: WARN
+
+# 限流配置
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+
+# ========== AI 自定义配置 ==========
+# DeepSeek（国内可用，性价比高）
+ai:
+  api-url: ${AI_API_URL:https://api.deepseek.com/v1/chat/completions}
+  api-key: ${AI_API_KEY:}
+  model: ${AI_MODEL:deepseek-chat}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:60}

@@ -1,5 +1,6 @@
 package com.example.demo.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -7,6 +8,7 @@ import tools.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.Embedding;
@@ -17,6 +19,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -73,7 +76,7 @@ public class SpringAIConfig {
             public EmbeddingResponse call(org.springframework.ai.embedding.EmbeddingRequest request) {
                 if (apiKey.isBlank()) {
                     throw new IllegalStateException(
-                            "spring.ai.dashscope.api-key 未配置，请在 application.properties 里填入 DashScope API Key");
+                            "spring.ai.dashscope.api-key 未配置，请在 application.yml 里填入 DashScope API Key");
                 }
 
                 List<String> inputs = request.getInstructions();
@@ -145,5 +148,18 @@ public class SpringAIConfig {
     public VectorStore vectorStore(EmbeddingModel dashScopeEmbeddingModel) {
         log.info("[SpringAI] 装配 SimpleVectorStore（内存向量库）");
         return SimpleVectorStore.builder(dashScopeEmbeddingModel).build();
+    }
+
+    /**
+     * 基于 Redis StringRedisTemplate 的 ChatMemory。
+     *
+     * <p>不使用 Spring AI 自带的 RedisChatMemoryAutoConfiguration，
+     * 因为它引用的 {@code redis.clients.jedis.RedisClient} 在
+     * Jedis 5.1.0+ 中不存在，auto-config 类加载即失败。
+     */
+    @Bean
+    public ChatMemory chatMemory(StringRedisTemplate stringRedisTemplate, ObjectMapper objectMapper) {
+        log.info("[SpringAI] 装配 RedisChatMemory（自定义实现，绕过 Jedis 兼容问题）");
+        return new RedisChatMemory(stringRedisTemplate, objectMapper);
     }
 }

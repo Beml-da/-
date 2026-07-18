@@ -1,0 +1,90 @@
+# ============================================================
+# 交易行后端 - 配置样例文件
+# 复制本文件为 application.yml（或在部署服务器上用环境变量覆盖）
+# ============================================================
+
+# 应用
+spring:
+  application:
+    name: jiaoyihang-trade
+
+  # 数据库
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/jiaoyihang?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: YOUR_DB_PASSWORD
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 5000
+
+  # ===== Spring AI DeepSeek =====
+  ai:
+    deepseek:
+      api-key: ${ai.api-key}
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: ${ai.model}
+          temperature: 0.5
+          max-tokens: 800
+
+    # ===== DashScope Embedding =====
+    dashscope:
+      api-key: YOUR_DASHSCOPE_API_KEY
+      base-url: https://dashscope.aliyuncs.com
+      embedding:
+        options:
+          model: text-embedding-v3
+          dimensions: 1024
+
+    # ===== ChatMemory（使用自定义 RedisChatMemory，无需额外配置）=====
+
+    # ===== VectorStore =====
+    vectorstore:
+      simple:
+        persist-path: ./data/vectorstore.json
+
+  # 关闭有问题的 Spring AI Redis 自动装配
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.redis.autoconfigure.RedisVectorStoreAutoConfiguration
+      - org.springframework.ai.model.chat.memory.redis.autoconfigure.RedisChatMemoryAutoConfiguration
+
+# 服务器
+server:
+  port: 8080
+
+# ===== MyBatis =====
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.example.demo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# ===== 上传 =====
+upload:
+  path: ./uploads
+
+# ===== JWT（必须修改，长度 >= 32 字节）=====
+jwt:
+  secret: YOUR_JWT_SECRET_AT_LEAST_32_BYTES_LONG
+  expiration: 86400000
+
+# ===== 限流 =====
+rate-limit:
+  enabled: true
+
+# ===== DeepSeek =====
+ai:
+  api-url: https://api.deepseek.com/v1/chat/completions
+  api-key: YOUR_DEEPSEEK_API_KEY
+  model: deepseek-chat
+  timeout-seconds: 60
